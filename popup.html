@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>SolSniper</title>
+  <style>
+    :root {
+      --bg: #0b0f14; --bg2: #111821; --line: #1f2a36; --text: #e6edf3; --mute: #7d8b99;
+      --good: #22ff88; --warn: #ffc83d; --bad: #ff4d6d; --accent: #14f195;
+      color-scheme: dark;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { background: var(--bg); color: var(--text); }
+    body {
+      width: 380px; min-height: 420px;
+      font: 13px/1.4 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    /* Mobile (Kiwi / Brave Mobile open the popup as a full page) */
+    @media (pointer: coarse) {
+      body { width: 100%; }
+      input, select, button { font-size: 16px !important; }
+      .btn { min-height: 40px; }
+      .toggle { width: 46px; height: 26px; }
+    }
+    header {
+      position: sticky; top: 0; z-index: 2;
+      display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+      background: var(--bg2); border-bottom: 1px solid var(--line);
+    }
+    .logo { color: var(--accent); font-size: 18px; text-shadow: 0 0 8px var(--accent); }
+    h1 { font-size: 14px; flex: 1; }
+    .ws { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--mute); cursor: pointer; }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--mute); }
+    .dot.connected { background: var(--good); box-shadow: 0 0 8px var(--good); }
+    .dot.connecting { background: var(--warn); }
+    .dot.error, .dot.disconnected { background: var(--bad); }
+
+    nav { display: flex; gap: 4px; padding: 8px 12px 0; }
+    nav button {
+      flex: 1; padding: 7px 0; border-radius: 8px 8px 0 0; border: 1px solid var(--line); border-bottom: 0;
+      background: transparent; color: var(--mute); font: inherit; font-weight: 600; cursor: pointer;
+    }
+    nav button.active { background: var(--bg2); color: var(--accent); }
+    main { padding: 0 12px 12px; }
+    .tab { display: none; background: var(--bg2); border: 1px solid var(--line); border-radius: 0 0 12px 12px; padding: 10px; flex-direction: column; gap: 10px; }
+    .tab.active { display: flex; }
+
+    .row { display: flex; gap: 8px; align-items: center; }
+    .row > * { min-width: 0; }
+    .grow { flex: 1; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    @media (max-width: 340px) { .grid2 { grid-template-columns: 1fr; } }
+    label.f { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--mute); }
+    input[type=text], input[type=number], input[type=password], select {
+      width: 100%; height: 32px; padding: 0 8px; border-radius: 8px;
+      background: var(--bg); color: var(--text); border: 1px solid var(--line); font: inherit; outline: none;
+    }
+    input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(20,241,149,.2); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; }
+    .switch { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .toggle { appearance: none; width: 38px; height: 22px; border-radius: 999px; background: var(--line); position: relative; cursor: pointer; flex: none; transition: background .2s; }
+    .toggle::after { content: ""; position: absolute; top: 3px; left: 3px; width: calc(50% - 3px); aspect-ratio: 1; border-radius: 50%; background: var(--mute); transition: transform .2s, background .2s; }
+    .toggle:checked { background: rgba(20,241,149,.3); }
+    .toggle:checked::after { transform: translateX(calc(100% + 2px)); background: var(--accent); }
+    .btn {
+      padding: 7px 12px; border-radius: 8px; border: 1px solid rgba(20,241,149,.35);
+      background: rgba(20,241,149,.08); color: var(--accent); font: inherit; font-weight: 700; cursor: pointer; white-space: nowrap;
+      text-decoration: none; display: inline-flex; align-items: center; justify-content: center;
+    }
+    .btn:hover { background: rgba(20,241,149,.18); }
+    .btn.ghost { border-color: var(--line); background: transparent; color: var(--mute); }
+    .btn.sm { padding: 4px 8px; font-size: 11px; }
+    .hint { font-size: 11px; color: var(--mute); }
+    .sec { font-size: 11px; font-weight: 700; color: var(--mute); text-transform: uppercase; letter-spacing: .4px; }
+    .good { color: var(--good); } .warn { color: var(--warn); } .bad { color: var(--bad); } .mute { color: var(--mute); }
+    .saved { font-size: 11px; color: var(--good); opacity: 0; transition: opacity .3s; }
+    .saved.show { opacity: 1; }
+
+    .result { border: 1px solid var(--line); border-radius: 10px; padding: 8px; display: flex; flex-direction: column; gap: 6px; background: var(--bg); }
+    .result:empty { display: none; }
+    .kvs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px 10px; font-size: 12px; }
+    .kvs div { display: flex; flex-direction: column; }
+    .kvs span:first-child { color: var(--mute); font-size: 10px; }
+    .badge { font-weight: 800; font-size: 11px; padding: 2px 8px; border-radius: 999px; }
+    .badge.SAFE { background: var(--good); color: #04140b; }
+    .badge.WARNING { background: var(--warn); color: #1a1200; }
+    .badge.DANGER { background: var(--bad); color: #fff; }
+
+    .log { display: flex; flex-direction: column; gap: 6px; max-height: 380px; overflow-y: auto; }
+    @media (pointer: coarse) { .log { max-height: none; } }
+    .sig { border: 1px solid var(--line); border-left: 3px solid var(--good); border-radius: 8px; padding: 7px 8px; background: var(--bg); display: flex; flex-direction: column; gap: 4px; }
+    .sig.rej { border-left-color: var(--bad); opacity: .8; }
+    .sig .top { display: flex; align-items: center; gap: 6px; }
+    .sig .sym { font-weight: 800; }
+    .sig .meta { font-size: 11px; color: var(--mute); }
+    .sig .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    .empty { text-align: center; color: var(--mute); padding: 20px 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <span class="logo">◎</span>
+    <h1>SolSniper HUD</h1>
+    <span class="ws" id="wsStatus" title="Нажмите для переподключения"><span class="dot" id="wsDot"></span><span id="wsText">WS…</span></span>
+  </header>
+
+  <nav>
+    <button data-tab="scan" class="active">Скан</button>
+    <button data-tab="filters">Фильтры</button>
+    <button data-tab="signals">Сигналы <span id="sigCount" class="mute"></span></button>
+  </nav>
+
+  <main>
+    <!-- SCAN -->
+    <section class="tab active" id="tab-scan">
+      <button class="btn" id="scanTab">🔍 Проверить текущую вкладку</button>
+      <div class="hint" id="scanTabMsg"></div>
+      <div class="sec">Ручная проверка CA</div>
+      <div class="row">
+        <input type="text" id="caInput" class="grow mono" placeholder="Mint / pair address" autocomplete="off" spellcheck="false">
+        <button class="btn" id="caCheck">Check</button>
+      </div>
+      <div class="result" id="caResult"></div>
+    </section>
+
+    <!-- FILTERS -->
+    <section class="tab" id="tab-filters">
+      <div class="switch"><span>Авто-проверка при открытии вкладки</span><input type="checkbox" class="toggle" data-k="autoCheck"></div>
+      <div class="switch"><span>Push-уведомления о сигналах</span><input type="checkbox" class="toggle" data-k="notifyEnabled"></div>
+      <div class="sec">Жёсткий фильтр сигналов</div>
+      <div class="grid2">
+        <label class="f">Max Top 10 holders, %<input type="number" data-k="maxTop10Pct" min="1" max="100" step="1"></label>
+        <label class="f">Min Volume 5m, $<input type="number" data-k="minVol5mUsd" min="0" step="1000"></label>
+        <label class="f">Min Score (0-100)<input type="number" data-k="minScore" min="0" max="100" step="5"></label>
+        <label class="f">Риск на сделку, %<input type="number" data-k="riskPct" min="0.1" max="100" step="0.1"></label>
+      </div>
+      <div class="sec">Тестовый депозит</div>
+      <div class="grid2">
+        <label class="f">Сумма<input type="number" data-k="depositAmount" min="0" step="any"></label>
+        <label class="f">Валюта<select data-k="depositCurrency"><option value="USD">USD</option><option value="SOL">SOL</option></select></label>
+        <label class="f">Take Profit, x<input type="number" data-k="tpMultiple" min="1.1" step="0.1"></label>
+        <label class="f">Продать на TP, %<input type="number" data-k="tpSellPct" min="1" max="100" step="5"></label>
+      </div>
+      <div class="sec">Подключения</div>
+      <div class="switch"><span>WebSocket сигналы (Telegram-парсер)</span><input type="checkbox" class="toggle" data-k="wsEnabled"></div>
+      <label class="f">WebSocket URL<input type="text" class="mono" data-k="wsUrl" placeholder="ws://localhost:8080"></label>
+      <label class="f">Helius API key (рекомендуется)<input type="password" class="mono" data-k="heliusApiKey" placeholder="xxxxxxxx-xxxx-…" autocomplete="off"></label>
+      <label class="f">Custom RPC URL (опционально)<input type="text" class="mono" data-k="rpcUrl" placeholder="https://…"></label>
+      <div class="row"><span class="hint grow" id="rpcInfo"></span><span class="saved" id="savedMark">✓ сохранено</span></div>
+    </section>
+
+    <!-- SIGNALS -->
+    <section class="tab" id="tab-signals">
+      <div class="row">
+        <div class="switch grow"><span>Показать отклонённые</span><input type="checkbox" class="toggle" id="showRejected"></div>
+        <button class="btn ghost sm" id="clearLog">Очистить</button>
+      </div>
+      <div class="row">
+        <input type="text" id="testCa" class="grow mono" placeholder="CA для тестового сигнала" autocomplete="off" spellcheck="false">
+        <button class="btn sm" id="testSignal">Test</button>
+      </div>
+      <div class="log" id="log"></div>
+    </section>
+  </main>
+
+  <script src="engine.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

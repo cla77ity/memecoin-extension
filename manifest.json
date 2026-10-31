@@ -1,0 +1,59 @@
+{
+  "manifest_version": 3,
+  "name": "SolSniper HUD & Signal Filter",
+  "short_name": "SolSniper",
+  "version": "1.0.0",
+  "description": "Live RugCheck, holder risk, Attention Score and position sizing for Solana memecoins + filtered Telegram signals.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "action": {
+    "default_title": "SolSniper",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png"
+    }
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "permissions": [
+    "storage",
+    "notifications",
+    "activeTab",
+    "scripting",
+    "alarms"
+  ],
+  "host_permissions": [
+    "https://api.rugcheck.xyz/*",
+    "https://api.dexscreener.com/*",
+    "https://*.helius-rpc.com/*",
+    "https://api.mainnet-beta.solana.com/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://dexscreener.com/*",
+        "https://pump.fun/*",
+        "https://*.pump.fun/*",
+        "https://photon-sol.tinyastro.io/*",
+        "https://bullx.io/*",
+        "https://*.bullx.io/*",
+        "https://gmgn.ai/*",
+        "https://axiom.trade/*"
+      ],
+      "js": ["engine.js", "ui-overlay.js", "content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["styles.css"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "minimum_chrome_version": "116"
+}
