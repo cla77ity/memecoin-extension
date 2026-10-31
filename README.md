@@ -9,18 +9,44 @@ Chrome / Brave (десктоп) и Kiwi / Brave Mobile расширение (Man
 
 > ⚠️ Инструмент для анализа рисков, а не финансовый совет. Скоринг эвристический: SAFE ≠ «не скамят».
 
+## 📱 iPhone (без Mac)
+
+На iOS Chrome-расширения не ставятся, поэтому для iPhone есть **веб-приложение** (`index.html`) с тем же движком анализа: вставляешь CA или ссылку → RugCheck, Top-10, Dev, MC/Vol, Score, калькулятор позиции, лента сигналов.
+
+**Запуск (один раз, ~3 минуты, всё с телефона):**
+1. GitHub → репозиторий → **Settings → Pages** → Source: *Deploy from a branch* → ветка с проектом, папка `/ (root)` → Save.
+2. Через 1–2 минуты приложение будет по адресу `https://<username>.github.io/memecoin-extension/`.
+3. Открыть ссылку в **Safari** → «Поделиться» → **«На экран Домой»**. Запускается без адресной строки, как обычное приложение.
+4. ⚙️ Настройки → вставить **Helius API key**.
+
+**Как пользоваться:** скопировать CA или ссылку (DEXScreener, pump.fun, Photon, GMGN, Solscan) → в приложении нажать **📋 Вставить**. Подойдёт и ссылка вида `…/memecoin-extension/?ca=<CA>`; с ней можно сделать «Быструю команду» iOS, которая открывает приложение прямо из меню «Поделиться».
+
+**Сигналы из Telegram на iPhone** требуют запущенного `server.py` (на ПК/VPS):
+```bash
+export RELAY_TOKEN=$(python3 -c "import secrets;print(secrets.token_urlsafe(24))")
+python server.py
+cloudflared tunnel --url http://localhost:8080   # бесплатно, даёт https://xxxx.trycloudflare.com
+```
+В приложении: Настройки → *URL сервера* = адрес туннеля, *Токен* = `RELAY_TOKEN`. Приложение раздаётся и самим сервером: `https://xxxx.trycloudflare.com/app/`.
+
+Ограничения iOS: сигналы приходят, **только пока приложение открыто** (iOS замораживает фоновые вкладки; при возвращении приложение переподключается само). Автоматического HUD поверх DEXScreener нет — CA вставляется вручную.
+
+Если какой-то API не отдаёт CORS-заголовки браузеру, приложение само переключится на `/proxy` сервера. Прокси пропускает только DexScreener, RugCheck, Helius и Solana RPC и работает только с токеном.
+
 ## Структура
 
 | Файл | Что делает |
 |---|---|
 | `manifest.json` | MV3: `storage`, `notifications`, `activeTab`, `scripting`, `alarms` + host permissions для DexScreener / RugCheck / Helius / Solana RPC |
 | `background.js` | Service worker: API-агрегатор (таймаут 1.5 с на запрос), кэш 12 с, дедуп запросов, WebSocket-клиент с автопереподключением, фильтр сигналов, уведомления |
-| `engine.js` | Общая логика (SW + content + popup): `evaluateTokenPotential`, `classifyRisk`, `applySignalFilter`, `calcPosition`, форматтеры |
+| `analyzer.js` | Общий конвейер данных (расширение + веб-приложение): DexScreener + RugCheck + RPC → снимок токена |
+| `index.html` / `app.js` / `app.css` / `manifest.webmanifest` | Веб-приложение для iPhone (PWA) |
+| `engine.js` | Общая логика (SW + content + popup + web app): `evaluateTokenPotential`, `classifyRisk`, `applySignalFilter`, `calcPosition`, форматтеры |
 | `content.js` | Определение CA из URL / DOM, отслеживание SPA-навигации, автообновление каждые 15 с |
 | `ui-overlay.js` | Floating HUD в закрытом Shadow DOM: drag на ПК, bottom-sheet на мобильном, сворачивание в «пилюлю» |
 | `styles.css` | Тёмные неоновые стили виджета (подгружаются в Shadow DOM через constructable stylesheet — CSP сайта не мешает) |
 | `popup.html` / `popup.js` | Скан вкладки / ручной CA, фильтры, подключения, лента сигналов |
-| `server.py` | Telethon + aiohttp релей: Telegram и HTTP webhook → `ws://127.0.0.1:8080` |
+| `server.py` | Telethon + aiohttp релей: Telegram и HTTP webhook → `ws://127.0.0.1:8080`, раздача веб-приложения (`/app/`), CORS-прокси (`/proxy`) |
 
 ## Установка расширения
 
@@ -43,7 +69,7 @@ pip install -r requirements.txt
 export TG_API_ID=123456              # https://my.telegram.org → API development tools
 export TG_API_HASH=0123456789abcdef
 export TG_CHATS="@alpha_calls,-1001234567890"   # пусто = все чаты аккаунта
-export WEBHOOK_TOKEN=secret           # опционально
+export RELAY_TOKEN=secret             # обязателен, если сервер доступен из интернета (телефон, туннель)
 python server.py
 ```
 Первый запуск попросит телефон и код из Telegram, дальше используется файл `solsniper.session` (в `.gitignore` — не публикуйте его, это доступ к аккаунту).
@@ -53,10 +79,12 @@ python server.py
 **Webhook** для любых ботов/скриптов:
 ```bash
 curl -X POST http://127.0.0.1:8080/webhook \
-  -H 'content-type: application/json' -H 'x-webhook-token: secret' \
+  -H 'content-type: application/json' -H 'x-relay-token: secret' \
   -d '{"text":"new call 7GCihgDB8fe6KNjn2MYtkzZcRjQy3t9GHdC8uHYmW2hr","channel":"my-bot"}'
 ```
-Из текста извлекаются только валидные 32-байтные Solana-адреса (подписи транзакций, SOL/USDC/USDT отбрасываются), повторы одного CA гасятся на 10 минут. WebSocket принимает подключения только без `Origin` или с `chrome-extension://` — обычные сайты читать сигналы не могут.
+Из текста извлекаются только валидные 32-байтные Solana-адреса (подписи транзакций, SOL/USDC/USDT отбрасываются), повторы одного CA гасятся на 10 минут.
+
+Доступ: если задан `RELAY_TOKEN`, он обязателен для WebSocket (`?token=`), `/webhook` и `/proxy` (заголовок `x-relay-token`). Расширению в этом случае укажите `ws://localhost:8080/?token=<RELAY_TOKEN>`. Без токена сервер пускает только локальные инструменты, расширение и собственную страницу `/app/` — обычные сайты читать сигналы не могут.
 
 ## Как считается
 

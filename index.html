@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0f14">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="SolSniper">
+  <meta name="format-detection" content="telephone=no">
+  <title>SolSniper</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" href="icons/icon48.png">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <div class="root mobile app">
+    <header class="app-hdr">
+      <span class="logo">◎</span>
+      <b class="app-title">SolSniper</b>
+      <span class="grow"></span>
+      <button class="ws-pill" id="wsPill" title="Сервер сигналов"><span class="dot" id="wsDot"></span><span id="wsText">offline</span></button>
+    </header>
+
+    <main class="views">
+      <!-- SCAN -->
+      <section class="view active" id="view-scan">
+        <div class="scan-box">
+          <input id="caInput" class="ca-input" type="text" placeholder="CA или ссылка (DEX / pump.fun / Photon)" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go">
+          <div class="scan-actions">
+            <button class="btn ghost" id="pasteBtn">📋 Вставить</button>
+            <button class="btn primary" id="checkBtn">🔍 Проверить</button>
+          </div>
+        </div>
+        <div id="result"></div>
+        <div id="recent"></div>
+      </section>
+
+      <!-- SIGNALS -->
+      <section class="view" id="view-signals">
+        <div class="row-between">
+          <label class="switch-row"><input type="checkbox" class="toggle" id="showRejected"><span>Отклонённые</span></label>
+          <button class="btn ghost sm" id="clearLog">Очистить</button>
+        </div>
+        <div id="log" class="log"></div>
+      </section>
+
+      <!-- SETTINGS -->
+      <section class="view" id="view-settings">
+        <div class="sec-title">Фильтр сигналов</div>
+        <div class="form-grid">
+          <label class="field"><span>Max Top 10, %</span><input type="number" inputmode="decimal" data-k="maxTop10Pct"></label>
+          <label class="field"><span>Min Vol 5m, $</span><input type="number" inputmode="numeric" data-k="minVol5mUsd"></label>
+          <label class="field"><span>Min Score</span><input type="number" inputmode="numeric" data-k="minScore"></label>
+          <label class="field"><span>Риск, %</span><input type="number" inputmode="decimal" data-k="riskPct"></label>
+        </div>
+        <div class="sec-title">Депозит и Take Profit</div>
+        <div class="form-grid">
+          <label class="field"><span>Депозит</span><input type="number" inputmode="decimal" data-k="depositAmount"></label>
+          <label class="field"><span>Валюта</span><select data-k="depositCurrency"><option>USD</option><option>SOL</option></select></label>
+          <label class="field"><span>TP, x</span><input type="number" inputmode="decimal" data-k="tpMultiple"></label>
+          <label class="field"><span>Продать на TP, %</span><input type="number" inputmode="numeric" data-k="tpSellPct"></label>
+        </div>
+        <label class="switch-row"><input type="checkbox" class="toggle" data-k="autoCheck"><span>Автообновление результата (15 с)</span></label>
+        <div class="sec-title">Данные</div>
+        <label class="field"><span>Helius API key (рекомендуется)</span><input type="password" data-k="heliusApiKey" autocomplete="off" placeholder="xxxxxxxx-xxxx-…"></label>
+        <label class="field"><span>Custom RPC URL (опционально)</span><input type="url" data-k="rpcUrl" placeholder="https://…"></label>
+        <div class="sec-title">Сервер сигналов (server.py)</div>
+        <label class="field"><span>URL сервера</span><input type="url" data-k="serverUrl" placeholder="https://xxxx.trycloudflare.com"></label>
+        <label class="field"><span>Токен (RELAY_TOKEN)</span><input type="password" data-k="serverToken" autocomplete="off"></label>
+        <label class="switch-row"><input type="checkbox" class="toggle" data-k="wsEnabled"><span>Получать сигналы</span></label>
+        <div class="hint" id="settingsInfo"></div>
+      </section>
+    </main>
+
+    <nav class="tabbar">
+      <button data-view="scan" class="active"><span>🔍</span>Скан</button>
+      <button data-view="signals"><span>📡</span>Сигналы<i class="count" id="sigCount" hidden></i></button>
+      <button data-view="settings"><span>⚙️</span>Настройки</button>
+    </nav>
+    <div class="toast" id="toast" hidden></div>
+  </div>
+
+  <script src="engine.js"></script>
+  <script src="analyzer.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

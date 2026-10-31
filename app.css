@@ -1,0 +1,134 @@
+/* iPhone web app shell. Token card reuses styles.css (same look as the extension HUD). */
+html, body {
+  margin: 0; background: #0b0f14; color: #e6edf3;
+  -webkit-text-size-adjust: 100%; overscroll-behavior-y: none;
+}
+body { min-height: 100dvh; }
+.app { min-height: 100dvh; display: flex; flex-direction: column; font-size: 14px; }
+.grow { flex: 1; }
+
+.app-hdr {
+  position: sticky; top: 0; z-index: 5;
+  display: flex; align-items: center; gap: 8px;
+  padding: calc(env(safe-area-inset-top) + 10px) 16px 10px;
+  background: rgba(11, 15, 20, .92); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+.app-title { font-size: 16px; }
+.app .logo { font-size: 20px; }
+.ws-pill {
+  display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px;
+  background: var(--bg2); border: 1px solid var(--line); color: var(--mute); font: inherit; font-size: 12px;
+}
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--mute); }
+.dot.connected { background: var(--good); box-shadow: 0 0 8px var(--good); }
+.dot.connecting { background: var(--warn); }
+.dot.error { background: var(--bad); }
+
+.views { flex: 1; padding: 12px 16px calc(84px + env(safe-area-inset-bottom)); }
+.view { display: none; flex-direction: column; gap: 12px; }
+.view.active { display: flex; }
+
+.scan-box { display: flex; flex-direction: column; gap: 8px; }
+.ca-input, .app .field input, .app .field select {
+  width: 100%; height: 46px; padding: 0 12px; border-radius: 12px;
+  background: var(--bg2); color: var(--text); border: 1px solid var(--line);
+  font: 16px ui-monospace, SFMono-Regular, Menlo, monospace; outline: none; -webkit-appearance: none; appearance: none;
+}
+.app .field input, .app .field select { font-family: inherit; height: 42px; }
+.ca-input:focus, .app .field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(20, 241, 149, .2); }
+.scan-actions { display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; }
+.app .btn {
+  margin: 0; min-height: 46px; font-size: 15px; border-radius: 12px; display: inline-flex; align-items: center; justify-content: center;
+  -webkit-tap-highlight-color: transparent;
+}
+.app .btn.primary { background: var(--accent); color: #04140b; border-color: var(--accent); box-shadow: 0 0 18px rgba(20, 241, 149, .35); }
+.app .btn.ghost { color: var(--mute); border-color: var(--line); background: var(--bg2); }
+.app .btn.sm { min-height: 34px; font-size: 13px; padding: 4px 12px; }
+.app .btn:active { transform: scale(.98); }
+
+/* token card */
+.token-card { background: var(--bg); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.token-head { display: flex; align-items: center; gap: 10px; padding: 12px; background: var(--bg2); border-bottom: 1px solid var(--line); }
+.token-head img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; background: var(--line); }
+.token-head .names { flex: 1; min-width: 0; }
+.token-head .sym { font-size: 16px; max-width: none; }
+.token-head .nm { color: var(--mute); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.token-head .score { font-size: 16px; padding: 4px 10px; }
+.token-card .body { padding: 12px; }
+.token-card .kv { font-size: 13px; }
+.token-card .calc { padding: 12px; }
+.token-card .ftr { padding: 10px 12px 12px; }
+.token-card .links a { padding: 9px 12px; font-size: 13px; }
+.app .grid { gap: 8px; }
+.app .card { padding: 8px; }
+.err { color: var(--bad); padding: 14px; text-align: center; }
+
+.recent { display: flex; flex-wrap: wrap; gap: 6px; }
+.recent button {
+  padding: 7px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--bg2);
+  color: var(--text); font: inherit; font-size: 13px;
+}
+
+/* signals */
+.row-between { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.switch-row { display: flex; align-items: center; gap: 10px; color: var(--text); }
+.toggle { -webkit-appearance: none; appearance: none; width: 48px; height: 28px; border-radius: 999px; background: var(--line); position: relative; flex: none; margin: 0; transition: background .2s; }
+.toggle::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: var(--mute); transition: transform .2s, background .2s; }
+.toggle:checked { background: rgba(20, 241, 149, .3); }
+.toggle:checked::after { transform: translateX(20px); background: var(--accent); }
+.log { display: flex; flex-direction: column; gap: 8px; }
+.sig { border: 1px solid var(--line); border-left: 3px solid var(--good); border-radius: 12px; padding: 10px; background: var(--bg2); display: flex; flex-direction: column; gap: 6px; }
+.sig.rej { border-left-color: var(--bad); opacity: .85; }
+.sig-top { display: flex; align-items: center; gap: 8px; }
+.sig-top b { font-size: 15px; }
+.meta { font-size: 12px; color: var(--mute); }
+.sig .links { gap: 8px; }
+.empty { color: var(--mute); text-align: center; padding: 28px 8px; line-height: 1.6; }
+
+/* settings */
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.app .field span { font-size: 12px; }
+.app .sec-title { font-size: 11px; margin-top: 6px; }
+.hint { font-size: 12px; color: var(--mute); word-break: break-all; }
+
+/* tab bar */
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 6;
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+  background: rgba(17, 24, 33, .95); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid var(--line);
+}
+.tabbar button {
+  position: relative; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  background: none; border: 0; color: var(--mute); font: inherit; font-size: 11px; padding: 6px 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.tabbar button span { font-size: 20px; filter: grayscale(1); opacity: .7; }
+.tabbar button.active { color: var(--accent); }
+.tabbar button.active span { filter: none; opacity: 1; }
+.count {
+  position: absolute; top: 2px; left: calc(50% + 8px); min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: 999px; background: var(--bad); color: #fff; font: 700 11px/18px system-ui; font-style: normal;
+}
+
+.toast {
+  position: fixed; left: 16px; right: 16px; top: calc(env(safe-area-inset-top) + 64px); z-index: 10;
+  padding: 12px 14px; border-radius: 14px; background: var(--bg2); border: 1px solid var(--accent);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .6), 0 0 20px rgba(20, 241, 149, .25); font-weight: 600;
+}
+
+@media (min-width: 700px) {
+  .views { max-width: 560px; margin: 0 auto; width: 100%; }
+}
+
+/* iPhone widths: 2 + 1 metric cards so values never clip */
+@media (max-width: 430px) {
+  .app .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .app .grid .card:last-child { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(3, 1fr); column-gap: 10px; }
+  .app .grid .card:last-child .sec-title { grid-column: 1 / -1; }
+  .app .grid .card:last-child .kv { flex-direction: column; align-items: flex-start; gap: 0; }
+  .app .calc-out { grid-template-columns: 1fr; }
+}
+.filter-note.filter-ok { color: var(--good); background: rgba(34, 255, 136, .08); }

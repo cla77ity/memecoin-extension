@@ -13,22 +13,28 @@ Usage:
     python server.py --no-telegram   # webhook only
     python server.py --demo <MINT>   # emit a test signal every 30s
 
+    The iPhone web app is served at http://127.0.0.1:8080/app/ ; expose it with
+    `cloudflared tunnel --url http://localhost:8080` and set RELAY_TOKEN.
+
 Webhook:
     curl -X POST http://127.0.0.1:8080/webhook -H 'content-type: application/json' \
-         -H 'x-webhook-token: $WEBHOOK_TOKEN' -d '{"text": "new call: <MINT>", "channel": "my-bot"}'
+         -H 'x-relay-token: $RELAY_TOKEN' -d '{"text": "new call: <MINT>", "channel": "my-bot"}'
 """
 from __future__ import annotations
 
 import argparse
 import asyncio
+import hmac
 import json
 import logging
 import os
 import re
 import time
 import uuid
+from pathlib import Path
+from urllib.parse import urlsplit
 
-from aiohttp import WSMsgType, web
+from aiohttp import ClientSession, ClientTimeout, WSMsgType, web
 
 try:
     from telethon import TelegramClient, events
@@ -48,6 +54,13 @@ IGNORED = {
     "11111111111111111111111111111111",
 }
 DEDUPE_SECONDS = 600
+APP_DIR = Path(__file__).resolve().parent
+APP_FILES = {
+    "index.html", "app.js", "app.css", "engine.js", "analyzer.js", "styles.css", "manifest.webmanifest",
+    "icons/apple-touch-icon.png", "icons/icon192.png", "icons/icon512.png", "icons/icon48.png",
+}
+PROXY_HOSTS = {"api.dexscreener.com", "api.rugcheck.xyz", "mainnet.helius-rpc.com", "api.mainnet-beta.solana.com"}
+EXTENSION_ORIGINS = ("chrome-extension://", "moz-extension://", "safari-web-extension://", "extension://")
 
 
 def b58_decoded_len(s: str) -> int | None:
@@ -111,19 +124,38 @@ class Hub:
         return sent
 
 
-def origin_allowed(origin: str | None) -> bool:
-    # Allow the extension and non-browser tools; refuse arbitrary websites (they could otherwise read signals).
+def authorized(request: web.Request) -> bool:
+    """With RELAY_TOKEN set, the token is required and sufficient (needed for phone / internet access).
+    Without it, only local tools, the browser extension and same-origin pages (the /app/ web app) may connect."""
+    token = request.app["token"]
+    if token:
+        given = request.headers.get("x-relay-token") or request.headers.get("x-webhook-token") or request.query.get("token") or ""
+        return hmac.compare_digest(given.encode(), token.encode())
+    origin = request.headers.get("Origin")
     if not origin:
         return True
-    return origin.startswith(("chrome-extension://", "moz-extension://", "extension://"))
+    return origin.startswith(EXTENSION_ORIGINS) or origin == f"{request.scheme}://{request.host}"
+
+
+def cors_headers(request: web.Request) -> dict:
+    origin = request.headers.get("Origin")
+    if not origin:
+        return {}
+    return {
+        "Access-Control-Allow-Origin": origin,
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Headers": "content-type, accept, x-relay-token",
+        "Access-Control-Max-Age": "600",
+        "Vary": "Origin",
+    }
 
 
 async def root_handler(request: web.Request) -> web.StreamResponse:
     hub: Hub = request.app["hub"]
     if request.headers.get("Upgrade", "").lower() != "websocket":
         return web.json_response({"ok": True, "service": "solsniper-relay", "clients": len(hub.clients)})
-    if not origin_allowed(request.headers.get("Origin")):
-        return web.Response(status=403, text="origin not allowed")
+    if not authorized(request):
+        return web.Response(status=403, text="forbidden: bad token or origin")
 
     ws = web.WebSocketResponse(heartbeat=20)
     await ws.prepare(request)
@@ -148,8 +180,7 @@ async def root_handler(request: web.Request) -> web.StreamResponse:
 
 
 async def webhook_handler(request: web.Request) -> web.Response:
-    token = request.app["webhook_token"]
-    if token and request.headers.get("x-webhook-token") != token and request.query.get("token") != token:
+    if not authorized(request):
         return web.json_response({"ok": False, "error": "unauthorized"}, status=401)
     # JSON only: a browser page can't send application/json cross-origin without a CORS preflight we never grant.
     if request.content_type != "application/json":
@@ -167,6 +198,49 @@ async def webhook_handler(request: web.Request) -> web.Response:
         return web.json_response({"ok": False, "error": "no Solana address found"}, status=422)
     sent = await request.app["hub"].publish(mints[:3], text, str(body.get("channel") or "webhook"), dedupe=not body.get("force"))
     return web.json_response({"ok": True, "sent": sent, "deduped": [m for m in mints[:3] if m not in sent]})
+
+
+async def proxy_handler(request: web.Request) -> web.Response:
+    """CORS fallback for the web app: relays GET/POST to an allow-list of public Solana data APIs only."""
+    headers = cors_headers(request)
+    if request.method == "OPTIONS":
+        return web.Response(status=204, headers=headers)
+    if not authorized(request):
+        return web.json_response({"ok": False, "error": "unauthorized"}, status=401, headers=headers)
+    target = request.query.get("url", "")
+    parts = urlsplit(target)
+    if parts.scheme != "https" or parts.hostname not in PROXY_HOSTS:
+        return web.json_response({"ok": False, "error": "host not allowed"}, status=400, headers=headers)
+    body = await request.read() if request.method == "POST" else None
+    if body is not None and len(body) > 64 * 1024:
+        return web.json_response({"ok": False, "error": "body too large"}, status=413, headers=headers)
+    try:
+        async with request.app["http"].request(
+            request.method, target, data=body,
+            headers={"accept": "application/json", "content-type": request.headers.get("content-type", "application/json")},
+        ) as up:
+            data = await up.read()
+            return web.Response(status=up.status, body=data, content_type="application/json", headers=headers)
+    except Exception as e:  # noqa: BLE001
+        return web.json_response({"ok": False, "error": f"upstream: {e.__class__.__name__}"}, status=502, headers=headers)
+
+
+async def app_handler(request: web.Request) -> web.StreamResponse:
+    """Serves the iPhone web app at /app/ (static, no secrets inside)."""
+    name = request.match_info.get("path") or "index.html"
+    if name not in APP_FILES:
+        raise web.HTTPNotFound()
+    return web.FileResponse(APP_DIR / name, headers={"Cache-Control": "no-cache"})
+
+
+async def redirect_to_app(_request: web.Request) -> web.Response:
+    raise web.HTTPFound("/app/")
+
+
+async def http_client(app: web.Application):
+    async with ClientSession(timeout=ClientTimeout(total=5), trust_env=True) as session:
+        app["http"] = session
+        yield
 
 
 def parse_chats(raw: str) -> list:
@@ -225,14 +299,21 @@ async def main() -> None:
     hub = Hub()
     app = web.Application()
     app["hub"] = hub
-    app["webhook_token"] = os.environ.get("WEBHOOK_TOKEN", "")
+    app["token"] = os.environ.get("RELAY_TOKEN") or os.environ.get("WEBHOOK_TOKEN", "")
+    app.cleanup_ctx.append(http_client)
     app.router.add_get("/", root_handler)
     app.router.add_post("/webhook", webhook_handler)
+    app.router.add_route("*", "/proxy", proxy_handler)
+    app.router.add_get("/app", redirect_to_app)
+    app.router.add_get("/app/", app_handler)
+    app.router.add_get("/app/{path:.+}", app_handler)
 
     runner = web.AppRunner(app)
     await runner.setup()
     await web.TCPSite(runner, args.host, args.port).start()
-    log.info("relay on ws://%s:%d  (webhook: POST http://%s:%d/webhook)", args.host, args.port, args.host, args.port)
+    log.info("relay on ws://%s:%d  (webhook: POST /webhook, web app: http://%s:%d/app/)", args.host, args.port, args.host, args.port)
+    if not app["token"]:
+        log.warning("RELAY_TOKEN not set: only local/extension clients allowed. Set it before exposing the server (phone, tunnel).")
 
     tasks = []
     if not args.no_telegram:
