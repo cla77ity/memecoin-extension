@@ -14,7 +14,7 @@
     </div>
     <section class="panel" role="dialog" aria-label="SolSniper HUD">
       <header class="hdr">
-        <div class="brand"><svg class="logo-mark" viewBox="60 60 392 392" aria-hidden="true"><defs><linearGradient id="ssRing" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#B26BFF"/><stop offset=".5" stop-color="#5B8CFF"/><stop offset="1" stop-color="#14F195"/></linearGradient><linearGradient id="ssCore" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff"/><stop offset=".45" stop-color="#7CFFD0"/><stop offset="1" stop-color="#14F195"/></linearGradient></defs><circle cx="256" cy="256" r="146" fill="none" stroke="url(#ssRing)" stroke-width="30" stroke-linecap="round" stroke-dasharray="185.3 44" stroke-dashoffset="-22"/><path d="M256 76V150M256 362V436M76 256H150M362 256H436" stroke="#E6F7F0" stroke-width="18" stroke-linecap="round"/><path d="M256 196 304 256 256 316 208 256Z" fill="url(#ssCore)"/></svg><span class="title">Sol<span class="grad">Sniper</span></span></div>
+        <div class="brand"><svg class="logo-mark" viewBox="60 60 392 392" aria-hidden="true"><circle cx="256" cy="256" r="146" fill="none" stroke="#fff" stroke-width="26" stroke-dasharray="185.3 44" stroke-dashoffset="-22"/><path d="M256 84V164M256 348V428M84 256H164M348 256H428" stroke="#fff" stroke-width="18"/><rect x="232" y="232" width="48" height="48" fill="#fff" transform="rotate(45 256 256)"/></svg><span class="title"><b>SOL</b><span>SNIPER</span></span></div>
         <div class="hdr-info"></div>
         <div class="hdr-actions">
           <button class="icon-btn" data-act="refresh" title="Обновить">↻</button>
@@ -24,7 +24,7 @@
       </header>
       <div class="body"></div>
       <div class="calc">
-        <div class="sec-title">🎯 Risk Calculator</div>
+        <div class="sec-title">Risk Calc</div>
         <div class="calc-in">
           <label class="field"><span>Депозит</span><input data-k="depositAmount" type="number" inputmode="decimal" min="0" step="any"></label>
           <label class="field field-sm"><span>Валюта</span>
@@ -215,32 +215,32 @@
       }
       const { token: t, evaluation: ev, badge, filter } = state.result;
       const lp = t.isBondingCurve
-        ? '<span class="chip chip-good" title="pump.fun bonding curve: ликвидность в программе">BC 🔒</span>'
+        ? '<span class="chip chip-good" title="pump.fun bonding curve: ликвидность в программе">CURVE</span>'
         : threshold(t.lpBurnedPct === null ? null : 100 - t.lpBurnedPct, 1, 50, () => `${t.lpBurnedPct.toFixed(0)}%`);
       const risks = badge.reasons.length
         ? `<details class="risks"><summary>${badge.reasons.length} флаг(ов) риска</summary><ul>${badge.reasons.map((r) => `<li>${esc(r)}</li>`).join('')}</ul></details>`
         : '';
       b.innerHTML = `
         <div class="badge-row">
-          <span class="badge badge-${badge.level.toLowerCase()}">🛡️ ${badge.level}</span>
+          <span class="badge badge-${badge.level.toLowerCase()}">${badge.level}</span>
           <span class="verdict ${ev.passed ? 'good' : 'bad'}">${ev.passed ? 'PASS' : 'HIGH RUG RISK'}</span>
           ${state.status === 'loading' ? '<span class="spinner sm"></span>' : ''}
         </div>
         <div class="grid">
           <div class="card">
-            <div class="sec-title">🛡️ RugCheck</div>
+            <div class="sec-title">RugCheck</div>
             ${kv('Mint', onOff(t.mintAuthority))}
             ${kv('Freeze', onOff(t.freezeAuthority))}
-            ${kv('LP 🔥', lp)}
+            ${kv('LP burn', lp)}
           </div>
           <div class="card">
-            <div class="sec-title">👥 Holders</div>
+            <div class="sec-title">Holders</div>
             ${kv('Top 10', threshold(t.top10Pct, 15, 30))}
             ${kv('Dev', threshold(t.devPct, 5, 10))}
             ${kv('Holders', esc(t.totalHolders ?? 'n/a'))}
           </div>
           <div class="card">
-            <div class="sec-title">📊 Market</div>
+            <div class="sec-title">Market</div>
             ${kv('MC', esc(S.fmtUsd(t.marketCap)))}
             ${kv('Vol 5m', esc(S.fmtUsd(t.vol5m)))}
             ${kv('Liq', esc(S.fmtUsd(t.liquidityUsd)))}

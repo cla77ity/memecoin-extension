@@ -111,7 +111,7 @@ async function notify(entry) {
     await chrome.notifications.create(id, {
       type: 'basic',
       iconUrl: chrome.runtime.getURL('icons/icon128.png'),
-      title: `🎯 $${entry.symbol} — score ${entry.score}/100`,
+      title: `SIGNAL · $${entry.symbol} — score ${entry.score}/100`,
       message: `MC ${S.fmtUsd(entry.marketCap)} · Vol5m ${S.fmtUsd(entry.vol5m)} · Top10 ${S.fmtPct(entry.top10Pct)}`,
       contextMessage: entry.channel,
       buttons: [{ title: 'Open in Photon' }, { title: 'Open in DEXScreener' }],

@@ -127,7 +127,7 @@
     if (!lastResult) return;
     const { token: t, evaluation: ev, badge, filter } = lastResult;
     const lp = t.isBondingCurve
-      ? '<span class="chip chip-good">BC 🔒</span>'
+      ? '<span class="chip chip-good">CURVE</span>'
       : (S.num(t.lpBurnedPct) === null ? '<span class="mute">n/a</span>'
         : `<span class="${t.lpBurnedPct >= 99 ? 'good' : t.lpBurnedPct >= 50 ? 'warn' : 'bad'}">${t.lpBurnedPct.toFixed(0)}%</span>`);
     const scoreCls = ev.score >= settings.minScore ? 'good' : ev.score >= 40 ? 'warn' : 'bad';
@@ -146,13 +146,13 @@
         </div>
         <div class="body">
           <div class="badge-row">
-            <span class="badge badge-${badge.level.toLowerCase()}">🛡️ ${badge.level}</span>
+            <span class="badge badge-${badge.level.toLowerCase()}">${badge.level}</span>
             <span class="verdict ${ev.passed ? 'good' : 'bad'}">${ev.passed ? 'PASS' : 'HIGH RUG RISK'}</span>
           </div>
           <div class="grid">
-            <div class="card"><div class="sec-title">🛡️ Rug</div>${kv('Mint', onOff(t.mintAuthority))}${kv('Freeze', onOff(t.freezeAuthority))}${kv('LP 🔥', lp)}</div>
-            <div class="card"><div class="sec-title">👥 Holders</div>${kv('Top 10', level(t.top10Pct, 15, 30))}${kv('Dev', level(t.devPct, 5, 10))}${kv('Всего', esc(t.totalHolders ?? 'n/a'))}</div>
-            <div class="card"><div class="sec-title">📊 Market</div>${kv('MC', esc(S.fmtUsd(t.marketCap)))}${kv('Vol 5m', esc(S.fmtUsd(t.vol5m)))}${kv('Liq', esc(S.fmtUsd(t.liquidityUsd)))}</div>
+            <div class="card"><div class="sec-title">Rug</div>${kv('Mint', onOff(t.mintAuthority))}${kv('Freeze', onOff(t.freezeAuthority))}${kv('LP burn', lp)}</div>
+            <div class="card"><div class="sec-title">Holders</div>${kv('Top 10', level(t.top10Pct, 15, 30))}${kv('Dev', level(t.devPct, 5, 10))}${kv('Всего', esc(t.totalHolders ?? 'n/a'))}</div>
+            <div class="card"><div class="sec-title">Market</div>${kv('MC', esc(S.fmtUsd(t.marketCap)))}${kv('Vol 5m', esc(S.fmtUsd(t.vol5m)))}${kv('Liq', esc(S.fmtUsd(t.liquidityUsd)))}</div>
           </div>
           <div class="score-box">
             <div class="bar"><div class="bar-fill ${scoreCls}" style="width:${ev.score}%"></div></div>
@@ -162,7 +162,7 @@
           ${badge.reasons.length ? `<details class="risks"><summary>${badge.reasons.length} флаг(ов) риска</summary><ul>${badge.reasons.map((x) => `<li>${esc(x)}</li>`).join('')}</ul></details>` : ''}
         </div>
         <div class="calc">
-          <div class="sec-title">🎯 Risk Calculator</div>
+          <div class="sec-title">Risk Calc</div>
           <div class="calc-in">
             <label class="field"><span>Депозит</span><input id="cDep" type="number" inputmode="decimal" value="${esc(settings.depositAmount)}"></label>
             <label class="field field-sm"><span>Валюта</span><select id="cCur"><option ${settings.depositCurrency === 'USD' ? 'selected' : ''}>USD</option><option ${settings.depositCurrency === 'SOL' ? 'selected' : ''}>SOL</option></select></label>
@@ -184,7 +184,7 @@
       </div>`;
 
     $('copyCa').addEventListener('click', (e) => {
-      navigator.clipboard.writeText(t.mint).then(() => { e.target.textContent = '✓ скопирован'; }).catch(() => {});
+      navigator.clipboard.writeText(t.mint).then(() => { e.target.textContent = 'скопирован'; }).catch(() => {});
     });
     for (const [id, k] of [['cDep', 'depositAmount'], ['cCur', 'depositCurrency'], ['cRisk', 'riskPct']]) {
       $(id).addEventListener('input', (e) => {
@@ -333,7 +333,7 @@
     renderLog();
     if (entry.approved) {
       if (!$('view-signals').classList.contains('active')) { unseen += 1; renderCount(); }
-      toast(`🎯 $${entry.symbol} · score ${entry.score} · MC ${S.fmtUsd(entry.marketCap)}`);
+      toast(`SIGNAL  $${entry.symbol} · score ${entry.score} · MC ${S.fmtUsd(entry.marketCap)}`);
       beep();
     }
   }
@@ -439,6 +439,11 @@
       }, 400);
     });
   });
+
+  // ------------------------------------------------------------ clock
+  const tick = () => { $('clock').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }); };
+  tick();
+  setInterval(tick, 1000);
 
   // ------------------------------------------------------------ init
   fillSettingsForm();

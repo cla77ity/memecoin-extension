@@ -137,7 +137,7 @@
       <div class="kvs">
         <div><span>Mint</span>${onOff(t.mintAuthority)}</div>
         <div><span>Freeze</span>${onOff(t.freezeAuthority)}</div>
-        <div><span>LP</span>${t.isBondingCurve ? 'BC 🔒' : esc(S.fmtPct(t.lpBurnedPct, 0))}</div>
+        <div><span>LP</span>${t.isBondingCurve ? 'CURVE' : esc(S.fmtPct(t.lpBurnedPct, 0))}</div>
         <div><span>Top 10</span>${esc(S.fmtPct(t.top10Pct))}</div>
         <div><span>Dev</span>${esc(S.fmtPct(t.devPct))}</div>
         <div><span>MC</span>${esc(S.fmtUsd(t.marketCap))}</div>

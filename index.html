@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0b0f14">
+  <meta name="theme-color" content="#000000">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -13,26 +13,29 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="icon" href="icons/icon48.png">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="app.css">
 </head>
 <body>
   <div class="root mobile app">
     <header class="app-hdr">
-      <svg class="logo-mark" viewBox="60 60 392 392" aria-hidden="true"><defs><linearGradient id="ssRing" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#B26BFF"/><stop offset=".5" stop-color="#5B8CFF"/><stop offset="1" stop-color="#14F195"/></linearGradient><linearGradient id="ssCore" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff"/><stop offset=".45" stop-color="#7CFFD0"/><stop offset="1" stop-color="#14F195"/></linearGradient></defs><circle cx="256" cy="256" r="146" fill="none" stroke="url(#ssRing)" stroke-width="30" stroke-linecap="round" stroke-dasharray="185.3 44" stroke-dashoffset="-22"/><path d="M256 76V150M256 362V436M76 256H150M362 256H436" stroke="#E6F7F0" stroke-width="18" stroke-linecap="round"/><path d="M256 196 304 256 256 316 208 256Z" fill="url(#ssCore)"/></svg>
-      <b class="app-title">Sol<span class="grad">Sniper</span></b>
+      <svg class="logo-mark" viewBox="60 60 392 392" aria-hidden="true"><circle cx="256" cy="256" r="146" fill="none" stroke="#fff" stroke-width="26" stroke-dasharray="185.3 44" stroke-dashoffset="-22"/><path d="M256 84V164M256 348V428M84 256H164M348 256H428" stroke="#fff" stroke-width="18"/><rect x="232" y="232" width="48" height="48" fill="#fff" transform="rotate(45 256 256)"/></svg>
+      <span class="title"><b>SOL</b><span>SNIPER</span></span><span class="app-sub">TERMINAL</span>
       <span class="grow"></span>
       <button class="ws-pill" id="wsPill" title="Сервер сигналов"><span class="dot" id="wsDot"></span><span id="wsText">offline</span></button>
+      <span class="clock" id="clock"></span>
     </header>
 
     <main class="views">
       <!-- SCAN -->
       <section class="view active" id="view-scan">
         <div class="scan-box">
-          <input id="caInput" class="ca-input" type="text" placeholder="CA или ссылка (DEX / pump.fun / Photon)" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go">
+          <div class="cmd"><span class="prompt">›</span><input id="caInput" class="ca-input" type="text" placeholder="вставь CA или ссылку на токен" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" enterkeyhint="go"></div>
           <div class="scan-actions">
-            <button class="btn ghost" id="pasteBtn">📋 Вставить</button>
-            <button class="btn primary" id="checkBtn">🔍 Проверить</button>
+            <button class="btn ghost" id="pasteBtn">Вставить</button>
+            <button class="btn primary" id="checkBtn">Сканировать</button>
           </div>
         </div>
         <div id="result"></div>
@@ -77,9 +80,9 @@
     </main>
 
     <nav class="tabbar">
-      <button data-view="scan" class="active"><span>🔍</span>Скан</button>
-      <button data-view="signals"><span>📡</span>Сигналы<i class="count" id="sigCount" hidden></i></button>
-      <button data-view="settings"><span>⚙️</span>Настройки</button>
+      <button data-view="scan" class="active">СКАН</button>
+      <button data-view="signals">СИГНАЛЫ<i class="count" id="sigCount" hidden></i></button>
+      <button data-view="settings">НАСТРОЙКИ</button>
     </nav>
     <div class="toast" id="toast" hidden></div>
   </div>
