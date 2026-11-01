@@ -14,7 +14,7 @@
     </div>
     <section class="panel" role="dialog" aria-label="SolSniper HUD">
       <header class="hdr">
-        <div class="brand"><svg class="logo-mark" viewBox="60 60 392 392" aria-hidden="true"><circle cx="256" cy="256" r="146" fill="none" stroke="#fff" stroke-width="26" stroke-dasharray="185.3 44" stroke-dashoffset="-22"/><path d="M256 84V164M256 348V428M84 256H164M348 256H428" stroke="#fff" stroke-width="18"/><rect x="232" y="232" width="48" height="48" fill="#fff" transform="rotate(45 256 256)"/></svg><span class="title"><b>SOL</b><span>SNIPER</span></span></div>
+        <div class="brand"><svg class="logo-mark" viewBox="60 60 392 392" aria-hidden="true"><circle cx="256" cy="256" r="146" fill="none" stroke="currentColor" stroke-width="26" stroke-dasharray="185.3 44" stroke-dashoffset="-22"/><path d="M256 84V164M256 348V428M84 256H164M348 256H428" stroke="currentColor" stroke-width="18" stroke-linecap="round"/><rect x="232" y="232" width="48" height="48" rx="6" fill="currentColor" transform="rotate(45 256 256)"/></svg><span class="title">SolSniper</span></div>
         <div class="hdr-info"></div>
         <div class="hdr-actions">
           <button class="icon-btn" data-act="refresh" title="Обновить">↻</button>

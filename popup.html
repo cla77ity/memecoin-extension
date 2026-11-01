@@ -4,108 +4,106 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>SolSniper</title>
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&display=swap">
   <style>
     :root {
-      --bg: #000; --p: #060606; --p2: #0d0d0d; --l: #1c1c1c; --l2: #2b2b2b;
-      --dim: #5c5c5c; --mid: #9a9a9a; --fg: #d9d9d9; --hi: #fff;
-      --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
-      color-scheme: dark;
+      --bg: #fff; --p: #fafafa; --p2: #f4f4f5; --l: #ededed; --l2: #dcdcdc;
+      --dim: #a1a1a1; --mid: #6e6e6e; --fg: #2b2b2b; --hi: #0a0a0a; --inv: #fff;
+      --sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Segoe UI", Roboto, system-ui, sans-serif;
+      --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+      color-scheme: light;
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    ::selection { background: #fff; color: #000; }
+    ::selection { background: var(--hi); color: var(--inv); }
     html, body { background: var(--bg); color: var(--fg); }
-    body { width: 380px; min-height: 440px; font: 12px/1.45 var(--mono); font-variant-numeric: tabular-nums; padding-bottom: env(safe-area-inset-bottom); -webkit-font-smoothing: antialiased; }
+    body { width: 380px; min-height: 460px; font: 13px/1.45 var(--sans); padding-bottom: env(safe-area-inset-bottom); -webkit-font-smoothing: antialiased; }
     @media (pointer: coarse) {
       body { width: 100%; }
       input, select, button { font-size: 16px !important; }
-      .btn { min-height: 40px; }
+      .btn { min-height: 42px; }
     }
 
-    header { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 10px; padding: 9px 12px; background: var(--p2); border-bottom: 1px solid var(--l); }
-    .logo-mark { width: 18px; height: 18px; flex: none; }
-    h1 { flex: 1; display: flex; align-items: center; gap: 8px; font-size: 11px; font-weight: 400; }
-    .title b { background: var(--hi); color: #000; padding: 1px 5px; font-weight: 600; letter-spacing: .08em; }
-    .title span { margin-left: 6px; color: var(--mid); letter-spacing: .3em; }
-    h1 .hud { font-size: 9px; letter-spacing: .2em; color: var(--dim); border: 1px solid var(--l2); padding: 0 4px; }
-    .ws { display: flex; align-items: center; gap: 6px; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--dim); cursor: pointer; }
-    .dot { width: 6px; height: 6px; border-radius: 50%; background: #000; outline: 1px solid var(--dim); }
-    .dot.connected { background: var(--hi); outline: 0; box-shadow: 0 0 6px rgba(255,255,255,.9); }
-    .dot.connecting { background: var(--mid); outline: 0; }
+    header { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: rgba(255,255,255,.9); backdrop-filter: blur(14px); border-bottom: 1px solid var(--l); }
+    .logo-mark { width: 22px; height: 22px; flex: none; color: var(--hi); }
+    h1 { flex: 1; display: flex; align-items: center; gap: 8px; }
+    .title { font-size: 15px; font-weight: 700; letter-spacing: -.02em; color: var(--hi); }
+    h1 .hud { font-size: 10px; font-weight: 600; color: var(--mid); background: var(--p2); border-radius: 999px; padding: 1px 7px; }
+    .ws { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--mid); background: var(--p2); padding: 4px 10px; border-radius: 999px; cursor: pointer; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--l2); }
+    .dot.connected { background: var(--hi); }
+    .dot.connecting { background: var(--dim); }
 
-    nav { display: grid; grid-template-columns: repeat(3, 1fr); border-bottom: 1px solid var(--l); }
-    nav button { position: relative; padding: 9px 0; background: none; border: 0; color: var(--dim); font: 500 10px var(--mono); letter-spacing: .2em; text-transform: uppercase; cursor: pointer; }
-    nav button:hover { color: var(--fg); }
-    nav button.active { color: var(--hi); }
-    nav button.active::after { content: ""; position: absolute; left: 25%; right: 25%; bottom: -1px; height: 2px; background: var(--hi); }
-    main { padding: 12px; }
-    .tab { display: none; flex-direction: column; gap: 10px; }
+    nav { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin: 12px 14px 0; padding: 4px; background: var(--p2); border-radius: 999px; }
+    nav button { padding: 7px 0; background: none; border: 0; border-radius: 999px; color: var(--mid); font: 600 12.5px var(--sans); cursor: pointer; transition: background .2s, color .2s; }
+    nav button:hover { color: var(--hi); }
+    nav button.active { color: var(--inv); background: var(--hi); }
+    main { padding: 14px; }
+    .tab { display: none; flex-direction: column; gap: 12px; }
     .tab.active { display: flex; }
 
     .row { display: flex; gap: 8px; align-items: center; }
     .row > * { min-width: 0; }
     .grow { flex: 1; }
-    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     @media (max-width: 340px) { .grid2 { grid-template-columns: 1fr; } }
-    label.f { display: flex; flex-direction: column; gap: 4px; font-size: 9.5px; color: var(--dim); letter-spacing: .14em; text-transform: uppercase; }
+    label.f { display: flex; flex-direction: column; gap: 4px; font-size: 11.5px; color: var(--mid); }
     input[type=text], input[type=number], input[type=password], select {
-      width: 100%; height: 32px; padding: 0 9px; border-radius: 0;
-      background: var(--bg); color: var(--hi); border: 1px solid var(--l2); font: 12px var(--mono); outline: none; letter-spacing: 0; text-transform: none;
+      width: 100%; height: 36px; padding: 0 12px; border-radius: 12px;
+      background: var(--p2); color: var(--hi); border: 1px solid transparent; font: 13px var(--sans); outline: none;
+      transition: border-color .15s, background .15s;
     }
-    input:focus, select:focus { border-color: var(--hi); }
-    input::placeholder { color: #444; }
+    input:focus, select:focus { border-color: var(--hi); background: var(--bg); }
+    input::placeholder { color: var(--dim); }
+    .mono { font-family: var(--mono); font-size: 12px; }
     .switch { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--fg); }
-    .toggle { appearance: none; -webkit-appearance: none; width: 36px; height: 20px; background: var(--p2); border: 1px solid var(--l2); position: relative; cursor: pointer; flex: none; }
-    .toggle::after { content: ""; position: absolute; top: 3px; left: 3px; width: 12px; height: 12px; background: var(--dim); transition: transform .15s; }
-    .toggle:checked { border-color: var(--hi); }
-    .toggle:checked::after { transform: translateX(16px); background: var(--hi); }
+    .toggle { appearance: none; -webkit-appearance: none; width: 40px; height: 24px; border-radius: 999px; background: var(--l2); position: relative; cursor: pointer; flex: none; transition: background .2s; }
+    .toggle::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.2); transition: transform .2s; }
+    .toggle:checked { background: var(--hi); }
+    .toggle:checked::after { transform: translateX(16px); }
     .btn {
-      padding: 8px 12px; border: 1px solid var(--hi); background: var(--hi); color: #000;
-      font: 600 10.5px var(--mono); letter-spacing: .16em; text-transform: uppercase; cursor: pointer; white-space: nowrap;
-      text-decoration: none; display: inline-flex; align-items: center; justify-content: center;
+      padding: 9px 16px; border: 1px solid var(--hi); background: var(--hi); color: var(--inv); border-radius: 999px;
+      font: 600 13px var(--sans); cursor: pointer; white-space: nowrap;
+      text-decoration: none; display: inline-flex; align-items: center; justify-content: center; transition: opacity .15s, background .15s, color .15s;
     }
-    .btn:hover { background: var(--fg); }
-    .btn.ghost, .btn.sm { background: transparent; color: var(--fg); border-color: var(--l2); }
-    .btn.ghost:hover, .btn.sm:hover { background: var(--hi); color: #000; border-color: var(--hi); }
-    .btn.sm { padding: 5px 9px; font-size: 10px; letter-spacing: .1em; font-weight: 500; }
-    .hint { font-size: 11px; color: var(--dim); }
-    .sec { font-size: 9.5px; color: var(--dim); letter-spacing: .16em; text-transform: uppercase; padding: 6px 0 5px; border-bottom: 1px solid var(--l); }
+    .btn:hover { opacity: .85; }
+    .btn.ghost, .btn.sm { background: var(--bg); color: var(--hi); border-color: var(--l2); }
+    .btn.ghost:hover, .btn.sm:hover { background: var(--hi); color: var(--inv); border-color: var(--hi); opacity: 1; }
+    .btn.sm { padding: 6px 12px; font-size: 12px; }
+    .hint { font-size: 12px; color: var(--mid); }
+    .sec { font-size: 12.5px; font-weight: 600; color: var(--hi); padding-top: 4px; }
     .good { color: var(--hi); } .warn { color: var(--mid); } .mute { color: var(--dim); }
-    .bad { color: #000; background: var(--hi); padding: 0 4px; font-weight: 600; }
+    .bad { color: var(--inv); background: var(--hi); padding: 0 7px; border-radius: 999px; font-weight: 600; }
     .hint .bad, .saved.bad { background: none; color: var(--fg); padding: 0; text-decoration: underline; }
-    .saved { font-size: 10px; color: var(--hi); letter-spacing: .1em; opacity: 0; transition: opacity .3s; }
+    .saved { font-size: 11.5px; color: var(--hi); opacity: 0; transition: opacity .3s; }
     .saved.show { opacity: 1; }
 
-    .result { border: 1px solid var(--l2); padding: 10px; display: flex; flex-direction: column; gap: 8px; background: var(--p); }
+    .result { border: 1px solid var(--l); border-radius: 18px; padding: 12px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 8px 24px rgba(0,0,0,.06); }
     .result:empty { display: none; }
     .result b { color: var(--hi); }
-    .kvs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--l); border: 1px solid var(--l); }
-    .kvs div { display: flex; flex-direction: column; background: var(--bg); padding: 5px 7px; color: var(--hi); }
-    .kvs span:first-child { color: var(--dim); font-size: 9px; letter-spacing: .14em; text-transform: uppercase; }
-    .badge { font-weight: 600; font-size: 9.5px; padding: 1px 6px; letter-spacing: .14em; border: 1px solid; }
+    .kvs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+    .kvs div { display: flex; flex-direction: column; background: var(--p2); border-radius: 12px; padding: 7px 9px; color: var(--hi); font-family: var(--mono); font-size: 12.5px; }
+    .kvs span:first-child { color: var(--mid); font: 11px var(--sans); }
+    .badge { font-weight: 600; font-size: 10.5px; padding: 2px 9px; border: 1px solid; border-radius: 999px; }
     .badge.SAFE { color: var(--hi); border-color: var(--hi); }
-    .badge.WARNING { color: var(--fg); border-color: var(--mid); border-style: dashed; }
-    .badge.DANGER { color: #000; background: var(--hi); border-color: var(--hi); }
+    .badge.WARNING { color: var(--fg); border-color: var(--l2); background: var(--p2); }
+    .badge.DANGER { color: var(--inv); background: var(--hi); border-color: var(--hi); }
 
-    .log { display: flex; flex-direction: column; gap: 1px; background: var(--l); border: 1px solid var(--l); max-height: 380px; overflow-y: auto; }
-    .log:has(.empty) { background: none; border: 0; }
+    .log { display: flex; flex-direction: column; gap: 8px; max-height: 380px; overflow-y: auto; }
     @media (pointer: coarse) { .log { max-height: none; } }
-    .sig { padding: 8px 10px; background: var(--p); display: flex; flex-direction: column; gap: 5px; border-left: 2px solid var(--hi); }
-    .sig.rej { border-left-color: var(--l2); }
+    .sig { padding: 11px 12px; border: 1px solid var(--l); border-radius: 16px; display: flex; flex-direction: column; gap: 6px; }
+    .sig.rej { background: var(--p); }
     .sig .top { display: flex; align-items: center; gap: 8px; }
-    .sig .sym { font-weight: 600; color: var(--hi); }
+    .sig .sym { font-weight: 700; color: var(--hi); }
     .sig.rej .sym { color: var(--mid); }
-    .sig .meta { font-size: 10.5px; color: var(--dim); }
+    .sig .meta { font-size: 11.5px; color: var(--mid); }
     .sig .meta.bad { background: none; color: var(--mid); padding: 0; font-weight: 400; }
     .sig .actions { display: flex; gap: 6px; flex-wrap: wrap; }
-    .empty { text-align: center; color: var(--dim); padding: 24px 0; line-height: 1.7; }
+    .empty { text-align: center; color: var(--mid); padding: 28px 12px; line-height: 1.7; background: var(--p); border-radius: 16px; }
   </style>
 </head>
 <body>
   <header>
-    <svg class="logo-mark" viewBox="60 60 392 392" aria-hidden="true"><circle cx="256" cy="256" r="146" fill="none" stroke="#fff" stroke-width="26" stroke-dasharray="185.3 44" stroke-dashoffset="-22"/><path d="M256 84V164M256 348V428M84 256H164M348 256H428" stroke="#fff" stroke-width="18"/><rect x="232" y="232" width="48" height="48" fill="#fff" transform="rotate(45 256 256)"/></svg>
-    <h1><span class="title"><b>SOL</b><span>SNIPER</span></span><span class="hud">HUD</span></h1>
+    <svg class="logo-mark" viewBox="60 60 392 392" aria-hidden="true"><circle cx="256" cy="256" r="146" fill="none" stroke="currentColor" stroke-width="26" stroke-dasharray="185.3 44" stroke-dashoffset="-22"/><path d="M256 84V164M256 348V428M84 256H164M348 256H428" stroke="currentColor" stroke-width="18" stroke-linecap="round"/><rect x="232" y="232" width="48" height="48" rx="6" fill="currentColor" transform="rotate(45 256 256)"/></svg>
+    <h1><span class="title">SolSniper</span><span class="hud">HUD</span></h1>
     <span class="ws" id="wsStatus" title="Нажмите для переподключения"><span class="dot" id="wsDot"></span><span id="wsText">WS…</span></span>
   </header>
 

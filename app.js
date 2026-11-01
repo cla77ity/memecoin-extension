@@ -222,7 +222,7 @@
   function renderRecent() {
     const list = LS.get('recent', []);
     $('recent').innerHTML = list.length
-      ? `<div class="sec-title">Недавние</div><div class="recent">${list.map((x) => `<button data-mint="${esc(x.mint)}">$${esc(x.symbol)}</button>`).join('')}</div>`
+      ? `<div class="recent-title">Недавние</div><div class="recent">${list.map((x) => `<button data-mint="${esc(x.mint)}">$${esc(x.symbol)}</button>`).join('')}</div>`
       : '';
   }
   $('recent').addEventListener('click', (e) => {
@@ -239,7 +239,7 @@
       scan(parseTarget(text));
     } catch (_) {
       $('caInput').focus();
-      toast('Нажмите на поле и выберите «Вставить»');
+      toast('Нажми на поле и выбери «Вставить»');
     }
   });
 
@@ -262,6 +262,7 @@
   }
 
   function setWs(state, text) {
+    $('wsPill').hidden = state === 'none'; // no server configured → nothing to show, scanning works without it
     $('wsDot').className = `dot ${state}`;
     $('wsText').textContent = text || state;
   }
@@ -270,18 +271,18 @@
     clearTimeout(wsTimer);
     if (ws) { ws.onclose = null; try { ws.close(); } catch (_) { /* ignore */ } ws = null; }
     const url = settings.wsEnabled ? wsUrl() : null;
-    if (!url) return setWs('', settings.wsEnabled ? 'нет сервера' : 'выкл');
+    if (!url) return setWs('none', '');
     if (location.protocol === 'https:' && url.startsWith('ws:')) return setWs('error', 'нужен https сервер');
-    setWs('connecting', '…');
+    setWs('connecting', 'Подключение…');
     let sock;
     try { sock = new WebSocket(url); } catch (e) { setWs('error', 'ошибка URL'); return; }
     ws = sock;
-    sock.onopen = () => { wsDelay = 1000; setWs('connected', 'online'); };
+    sock.onopen = () => { wsDelay = 1000; setWs('connected', 'Сигналы'); };
     sock.onmessage = (ev) => onWsMessage(ev.data).catch(() => {});
     sock.onclose = () => {
       if (ws !== sock) return;
       ws = null;
-      setWs('error', 'offline');
+      setWs('error', 'Сервер офлайн');
       if (document.visibilityState === 'visible') {
         wsTimer = setTimeout(connectWs, wsDelay);
         wsDelay = Math.min(wsDelay * 2, 30_000);
@@ -428,6 +429,7 @@
       saveTimer = setTimeout(() => {
         saveSettings();
         analyzer.clearCache();
+        if (k === 'heliusApiKey' || k === 'rpcUrl') checkConnections();
         if (['serverUrl', 'serverToken', 'wsEnabled'].includes(k)) {
           proxiedHosts.clear();
           LS.set('proxiedHosts', []);
@@ -439,6 +441,58 @@
       }, 400);
     });
   });
+
+  // ------------------------------------------------------------ connection check
+  const PROBE_MINT = 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'; // USDC: always indexed everywhere
+
+  async function probeJson(url, init = {}) {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 4000);
+    try {
+      const res = await transport(url, { ...init, signal: ctrl.signal, headers: { accept: 'application/json', ...(init.headers || {}) } });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return await res.json();
+    } catch (e) {
+      if (e.name === 'AbortError') throw new Error('нет ответа (4 с)');
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  function explain(name, msg) {
+    if (/HTTP 401|HTTP 403/.test(msg) && name.includes('Helius')) return 'ключ не принят — скопируй заново';
+    if (/HTTP 429/.test(msg)) return 'лимит запросов — подожди минуту';
+    if (/Failed to fetch|Load failed|NetworkError|CORS/i.test(msg)) return 'заблокировано браузером (Brave Shields?)';
+    return msg;
+  }
+
+  async function checkConnections() {
+    const helius = !!settings.heliusApiKey && !settings.rpcUrl;
+    const checks = [
+      ['DexScreener', 'цены, объём, ликвидность', () => probeJson(`https://api.dexscreener.com/latest/dex/tokens/${PROBE_MINT}`)],
+      ['RugCheck', 'риски, LP, dev', () => probeJson(`https://api.rugcheck.xyz/v1/tokens/${PROBE_MINT}/report/summary`)],
+      [helius ? 'Helius RPC' : settings.rpcUrl ? 'Custom RPC' : 'Public RPC', 'Mint, Freeze, Top 10', async () => {
+        const j = await probeJson(analyzer.rpcEndpoint(), {
+          method: 'POST', headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'getSlot' }),
+        });
+        if (j.error) throw new Error(j.error.message || 'RPC error');
+      }],
+    ];
+    const boxes = document.querySelectorAll('[data-conn]');
+    const row = (cls, ic, name, sub, st) => `<div class="conn-row ${cls}"><span class="ic">${ic}</span><div><b>${esc(name)}</b><div class="meta">${esc(sub)}</div></div><span class="st">${esc(st)}</span></div>`;
+    boxes.forEach((b) => { b.innerHTML = checks.map(([n, sub]) => row('wait', '…', n, sub, 'проверка')).join(''); });
+    const results = await Promise.all(checks.map(async ([name, sub, fn]) => {
+      const t0 = performance.now();
+      try { await fn(); return { name, sub, ok: true, st: `${Math.round(performance.now() - t0)} мс` }; } catch (e) { return { name, sub, ok: false, st: explain(name, String(e.message || e)) }; }
+    }));
+    let html = results.map((r) => row(r.ok ? 'ok' : 'fail', r.ok ? '✓' : '✕', r.name, r.sub, r.st)).join('');
+    if (!helius && !settings.rpcUrl) html += '<div class="conn-tip">Без ключа Helius публичный RPC часто отказывает, и Top 10 будет n/a. Вставь ключ в Настройках.</div>';
+    else if (results.every((r) => r.ok)) html += '<div class="conn-tip">Всё подключено. Можно сканировать.</div>';
+    boxes.forEach((b) => { b.innerHTML = html; });
+  }
+  document.addEventListener('click', (e) => { if (e.target.closest('[data-conncheck]')) checkConnections(); });
 
   // ------------------------------------------------------------ clock
   const tick = () => { $('clock').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }); };
@@ -455,4 +509,5 @@
     $('caInput').value = initial;
     scan(parseTarget(initial));
   }
+  else checkConnections();
 })();
