@@ -39,7 +39,12 @@
     function rpcEndpoint() {
       const s = getSettings();
       if (s.rpcUrl) return s.rpcUrl.trim();
-      if (s.heliusApiKey) return `https://mainnet.helius-rpc.com/?api-key=${encodeURIComponent(s.heliusApiKey.trim())}`;
+      if (s.heliusApiKey) {
+        // Accept a bare key or a full pasted Helius URL (…helius-rpc.com/?api-key=XXXX).
+        const raw = s.heliusApiKey.trim();
+        const key = (raw.match(/api-key=([A-Za-z0-9-]+)/) || [])[1] || raw;
+        return `https://mainnet.helius-rpc.com/?api-key=${encodeURIComponent(key)}`;
+      }
       return PUBLIC_RPC;
     }
 
