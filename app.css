@@ -215,3 +215,10 @@ body { min-height: 100dvh; }
 .w-chip button { width: 24px; height: 24px; border-radius: 50%; border: 0; background: var(--p2); color: var(--mid); font: 15px var(--sans); line-height: 1; }
 .live-row.trade.sell { background: var(--p); }
 .live-row.trade .lr-nums span:first-child { font-family: var(--sans); font-weight: 600; color: var(--hi); }
+
+.back-link {
+  align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; margin: 0 0 10px;
+  padding: 8px 16px 8px 12px; border: 0; border-radius: 999px; background: var(--p2); color: var(--hi);
+  font: 600 15px var(--sans); -webkit-tap-highlight-color: transparent;
+}
+.back-link:active { background: var(--l); }

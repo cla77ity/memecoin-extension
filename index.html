@@ -13,8 +13,8 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="icon" href="icons/icon48.png">
-  <link rel="stylesheet" href="styles.css?v=20261101-wallets">
-  <link rel="stylesheet" href="app.css?v=20261101-wallets">
+  <link rel="stylesheet" href="styles.css?v=20261101-nav">
+  <link rel="stylesheet" href="app.css?v=20261101-nav">
 </head>
 <body>
   <div class="root mobile app">
@@ -72,9 +72,9 @@
             <p class="hint" id="liveHint">Ловит каждый запуск на pump.fun, миграции на Raydium/PumpSwap и новые профили DexScreener. Алерт приходит, только если токен прошёл фильтр. Работает, пока приложение открыто.</p>
           </div>
           <div class="seg" id="liveFilter">
-            <button data-f="hot" class="active">Горячие</button>
-            <button data-f="alerted">Алерты</button>
-            <button data-f="all">Все</button>
+            <button data-f="safe" class="active">Без риска</button>
+            <button data-f="checked">Проверенные</button>
+            <button data-f="all">Весь поток</button>
           </div>
           <div id="liveList" class="live-list"></div>
         </div>
@@ -185,9 +185,9 @@
     <div class="toast" id="toast" hidden></div>
   </div>
 
-  <script src="engine.js?v=20261101-wallets"></script>
-  <script src="analyzer.js?v=20261101-wallets"></script>
-  <script src="scanner.js?v=20261101-wallets"></script>
-  <script src="app.js?v=20261101-wallets"></script>
+  <script src="engine.js?v=20261101-nav"></script>
+  <script src="analyzer.js?v=20261101-nav"></script>
+  <script src="scanner.js?v=20261101-nav"></script>
+  <script src="app.js?v=20261101-nav"></script>
 </body>
 </html>

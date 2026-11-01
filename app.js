@@ -45,14 +45,45 @@
   const analyzer = globalThis.SolSniperAnalyzer.createAnalyzer({ getSettings: () => settings, fetchImpl: transport });
 
   // ------------------------------------------------------------ navigation
-  function showView(name) {
+  let currentView = 'scan';
+  let scanOrigin = null; // view the user opened a token from (Live / Alerts) — "Back" returns there
+  function showView(name, { fromTab = false } = {}) {
+    if (name === 'scan' && currentView !== 'scan') scanOrigin = fromTab ? null : currentView;
+    currentView = name;
     document.querySelectorAll('.tabbar button').forEach((b) => b.classList.toggle('active', b.dataset.view === name));
     document.querySelectorAll('.view').forEach((v) => v.classList.toggle('active', v.id === `view-${name}`));
     if (name === 'signals') { unseen = 0; renderCount(); }
     if (name === 'live') renderLive();
     window.scrollTo(0, 0);
   }
-  document.querySelectorAll('.tabbar button').forEach((b) => b.addEventListener('click', () => showView(b.dataset.view)));
+  document.querySelectorAll('.tabbar button').forEach((b) => b.addEventListener('click', () => {
+    // tapping "Скан" again while a token is open returns to the scan home screen (like iOS tab bars)
+    if (b.dataset.view === 'scan' && currentView === 'scan' && current) { goHome(); return; }
+    showView(b.dataset.view, { fromTab: true });
+  }));
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('[data-back]')) return;
+    const origin = scanOrigin;
+    goHome();
+    if (origin && origin !== 'scan') showView(origin, { fromTab: true });
+  });
+  const backBtn = () => `<button class="back-link" data-back>‹ Назад</button>`;
+  const helloHtml = $('result').innerHTML;
+  let lastConnHtml = '';
+  function goHome() {
+    seq += 1; // drop any in-flight scan
+    current = null;
+    lastResult = null;
+    scanOrigin = null;
+    clearTimeout(refreshTimer);
+    $('result').innerHTML = helloHtml;
+    if (lastConnHtml) document.querySelectorAll('#result [data-conn]').forEach((b) => { b.innerHTML = lastConnHtml; });
+    $('caInput').value = '';
+    const u = new URL(location.href);
+    u.searchParams.delete('ca');
+    history.replaceState(null, '', u);
+    showView('scan', { fromTab: true });
+  }
 
   // ------------------------------------------------------------ input parsing
   /** Accepts a bare CA or any DEX / pump.fun / Photon / GMGN / BullX link. */
@@ -82,14 +113,14 @@
 
   async function scan(target, { force = true, quiet = false } = {}) {
     if (!target) {
-      $('result').innerHTML = '<div class="token-card"><div class="err">Не нашёл Solana-адрес. Вставьте CA или ссылку на токен.</div></div>';
+      $('result').innerHTML = `${backBtn()}<div class="token-card"><div class="err">Не нашёл Solana-адрес. Вставь CA или ссылку на токен.</div></div>`;
       return;
     }
     const my = ++seq;
     const sameToken = current && current.address === target.address;
     current = target;
     if (!quiet || !sameToken) {
-      $('result').innerHTML = `<div class="token-card"><div class="loading"><span class="spinner"></span>RugCheck · DexScreener · RPC…</div></div>`;
+      $('result').innerHTML = `${backBtn()}<div class="token-card"><div class="loading"><span class="spinner"></span>RugCheck · DexScreener · RPC…</div></div>`;
       lastResult = null;
     }
     try {
@@ -103,7 +134,7 @@
       history.replaceState(null, '', u);
     } catch (e) {
       if (my !== seq) return;
-      $('result').innerHTML = `<div class="token-card"><div class="err">Ошибка: ${esc(e.message || e)}</div></div>`;
+      $('result').innerHTML = `${backBtn()}<div class="token-card"><div class="err">Ошибка: ${esc(e.message || e)}</div></div>`;
     }
     scheduleRefresh();
   }
@@ -136,6 +167,7 @@
     const errorsList = Object.entries(t.errors).map(([k, v]) => `${k}: ${v}`).join(' · ');
 
     $('result').innerHTML = `
+      ${backBtn()}
       <div class="token-card">
         <div class="token-head">
           ${t.imageUrl ? `<img src="${esc(safeUrl(t.imageUrl))}" alt="" referrerpolicy="no-referrer" onerror="this.remove()">` : ''}
@@ -394,7 +426,7 @@
   }
 
   // ------------------------------------------------------------ live scanner (every new launch)
-  let liveFilter = 'hot';
+  let liveFilter = 'safe';
   let liveRenderPending = false;
   let wakeLock = null;
   const SRC_LABEL = { pump: 'Live · pump.fun', migration: 'Live · миграция', profile: 'Live · DexScreener' };
@@ -446,16 +478,18 @@
     if (!$('view-live').classList.contains('active')) return;
 
     let items = scanner.list();
-    if (liveFilter === 'hot') items = items.filter((t) => t.metrics && (t.metrics.vol5m || 0) > 0);
-    else if (liveFilter === 'alerted') items = items.filter((t) => t.status === 'alerted');
+    // "safe": only tokens that passed the whole filter (Score ≥ min, Freeze OFF, Top 10, Vol 5m, no DANGER)
+    if (liveFilter === 'safe') items = items.filter((t) => t.status === 'alerted');
+    else if (liveFilter === 'checked') items = items.filter((t) => t.score != null || t.status === 'checking' || t.status === 'candidate');
     items.sort(liveFilter === 'all'
       ? (a, b) => b.firstSeen - a.firstSeen
-      : (a, b) => (b.status === 'alerted') - (a.status === 'alerted') || ((b.metrics && b.metrics.vol5m) || 0) - ((a.metrics && a.metrics.vol5m) || 0));
+      : (a, b) => (b.status === 'alerted') - (a.status === 'alerted') || (b.score ?? -1) - (a.score ?? -1) || ((b.metrics && b.metrics.vol5m) || 0) - ((a.metrics && a.metrics.vol5m) || 0));
     items = items.slice(0, 60);
     if (!items.length) {
       const msg = !st.running ? 'Включи Live-сканер переключателем выше.'
-        : liveFilter === 'alerted' ? 'Пока ни один токен не прошёл фильтр. Это нормально: проходит меньшинство.'
-          : 'Собираю данные… Первые цифры появятся примерно через минуту.';
+        : liveFilter === 'safe' ? `Пока ни один токен не прошёл фильтр: Score ≥ ${settings.minScore}, Freeze OFF, Top 10 ≤ ${settings.maxTop10Pct}%, Vol 5m ≥ ${S.fmtUsd(settings.minVol5mUsd)}. Проходит меньшинство — это нормально. Отсеянные с причинами — во вкладке «Проверенные».`
+          : liveFilter === 'checked' ? 'Ещё ни один токен не набрал объём для полной проверки. Подожди пару минут.'
+            : 'Собираю данные… Первые цифры появятся примерно через минуту.';
       $('liveList').innerHTML = `<div class="empty">${msg}</div>`;
       return;
     }
@@ -801,6 +835,7 @@
         + '<button class="btn primary sm key-paste" data-pastekey>Вставить ключ Helius из буфера</button>';
     }
     else if (results.every((r) => r.ok)) html += '<div class="conn-tip">Всё подключено. Можно сканировать.</div>';
+    lastConnHtml = html;
     boxes.forEach((b) => { b.innerHTML = html; });
   }
   document.addEventListener('click', (e) => { if (e.target.closest('[data-conncheck]')) checkConnections(); });
