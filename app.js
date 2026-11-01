@@ -615,11 +615,32 @@
       try { await fn(); return { name, sub, ok: true, st: `${Math.round(performance.now() - t0)} мс` }; } catch (e) { return { name, sub, ok: false, st: explain(name, String(e.message || e)) }; }
     }));
     let html = results.map((r) => row(r.ok ? 'ok' : 'fail', r.ok ? '✓' : '✕', r.name, r.sub, r.st)).join('');
-    if (!helius && !settings.rpcUrl) html += '<div class="conn-tip">Без ключа Helius публичный RPC часто отказывает, и Top 10 будет n/a. Вставь ключ в Настройках.</div>';
+    if (!helius && !settings.rpcUrl) {
+      html += '<div class="conn-tip">Нужен ключ Helius: без него Mint, Freeze и Top 10 не проверяются. Скопируй ключ на dashboard.helius.dev (API Keys → Copy) и нажми кнопку ниже.</div>'
+        + '<button class="btn primary sm key-paste" data-pastekey>Вставить ключ Helius из буфера</button>';
+    }
     else if (results.every((r) => r.ok)) html += '<div class="conn-tip">Всё подключено. Можно сканировать.</div>';
     boxes.forEach((b) => { b.innerHTML = html; });
   }
   document.addEventListener('click', (e) => { if (e.target.closest('[data-conncheck]')) checkConnections(); });
+  document.addEventListener('click', async (e) => {
+    if (!e.target.closest('[data-pastekey]')) return;
+    let text = '';
+    try { text = (await navigator.clipboard.readText()).trim(); } catch (_) { /* clipboard denied */ }
+    if (!text) {
+      showView('settings');
+      const f = document.querySelector('[data-k="heliusApiKey"]');
+      f.focus();
+      toast('Нажми на поле «Helius API key» и выбери «Вставить»');
+      return;
+    }
+    settings.heliusApiKey = text;
+    saveSettings();
+    analyzer.clearCache();
+    fillSettingsForm();
+    toast('Ключ сохранён, проверяю…');
+    checkConnections();
+  });
 
   // ------------------------------------------------------------ clock
   const tick = () => { $('clock').textContent = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }); };

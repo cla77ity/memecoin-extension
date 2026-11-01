@@ -191,3 +191,5 @@ body { min-height: 100dvh; }
 .st-chip { font: 600 11px var(--sans); padding: 2px 9px; border-radius: 999px; background: var(--p2); color: var(--mid); white-space: nowrap; }
 .st-chip.candidate, .st-chip.checking { color: var(--hi); border: 1px solid var(--hi); background: var(--bg); }
 .st-chip.alerted { background: var(--hi); color: var(--inv); }
+
+.key-paste { width: 100%; min-height: 44px !important; margin-top: 2px; }
