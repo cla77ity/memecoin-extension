@@ -29,7 +29,9 @@
       display: flex; align-items: center; gap: 8px; padding: 10px 12px;
       background: var(--bg2); border-bottom: 1px solid var(--line);
     }
-    .logo { color: var(--accent); font-size: 18px; text-shadow: 0 0 8px var(--accent); }
+    .logo-mark { width: 24px; height: 24px; flex: none; filter: drop-shadow(0 0 6px rgba(20,241,149,.45)) drop-shadow(0 0 10px rgba(123,92,255,.3)); }
+    .grad { background: linear-gradient(90deg, #C9A2FF, #6E9BFF 45%, #14F195); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    h1 .hud { font-size: 10px; font-weight: 800; letter-spacing: 1px; color: var(--mute); border: 1px solid var(--line); border-radius: 5px; padding: 1px 5px; vertical-align: 2px; }
     h1 { font-size: 14px; flex: 1; }
     .ws { display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--mute); cursor: pointer; }
     .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--mute); }
@@ -101,8 +103,8 @@
 </head>
 <body>
   <header>
-    <span class="logo">◎</span>
-    <h1>SolSniper HUD</h1>
+    <svg class="logo-mark" viewBox="60 60 392 392" aria-hidden="true"><defs><linearGradient id="ssRing" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#B26BFF"/><stop offset=".5" stop-color="#5B8CFF"/><stop offset="1" stop-color="#14F195"/></linearGradient><linearGradient id="ssCore" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff"/><stop offset=".45" stop-color="#7CFFD0"/><stop offset="1" stop-color="#14F195"/></linearGradient></defs><circle cx="256" cy="256" r="146" fill="none" stroke="url(#ssRing)" stroke-width="30" stroke-linecap="round" stroke-dasharray="185.3 44" stroke-dashoffset="-22"/><path d="M256 76V150M256 362V436M76 256H150M362 256H436" stroke="#E6F7F0" stroke-width="18" stroke-linecap="round"/><path d="M256 196 304 256 256 316 208 256Z" fill="url(#ssCore)"/></svg>
+    <h1>Sol<span class="grad">Sniper</span> <span class="hud">HUD</span></h1>
     <span class="ws" id="wsStatus" title="Нажмите для переподключения"><span class="dot" id="wsDot"></span><span id="wsText">WS…</span></span>
   </header>
 

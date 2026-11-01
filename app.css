@@ -15,7 +15,7 @@ body { min-height: 100dvh; }
   border-bottom: 1px solid var(--line);
 }
 .app-title { font-size: 16px; }
-.app .logo { font-size: 20px; }
+.app .logo-mark { width: 28px; height: 28px; }
 .ws-pill {
   display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-radius: 999px;
   background: var(--bg2); border: 1px solid var(--line); color: var(--mute); font: inherit; font-size: 12px;

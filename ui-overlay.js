@@ -14,7 +14,7 @@
     </div>
     <section class="panel" role="dialog" aria-label="SolSniper HUD">
       <header class="hdr">
-        <div class="brand"><span class="logo">◎</span><span class="title">SolSniper</span></div>
+        <div class="brand"><svg class="logo-mark" viewBox="60 60 392 392" aria-hidden="true"><defs><linearGradient id="ssRing" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#B26BFF"/><stop offset=".5" stop-color="#5B8CFF"/><stop offset="1" stop-color="#14F195"/></linearGradient><linearGradient id="ssCore" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff"/><stop offset=".45" stop-color="#7CFFD0"/><stop offset="1" stop-color="#14F195"/></linearGradient></defs><circle cx="256" cy="256" r="146" fill="none" stroke="url(#ssRing)" stroke-width="30" stroke-linecap="round" stroke-dasharray="185.3 44" stroke-dashoffset="-22"/><path d="M256 76V150M256 362V436M76 256H150M362 256H436" stroke="#E6F7F0" stroke-width="18" stroke-linecap="round"/><path d="M256 196 304 256 256 316 208 256Z" fill="url(#ssCore)"/></svg><span class="title">Sol<span class="grad">Sniper</span></span></div>
         <div class="hdr-info"></div>
         <div class="hdr-actions">
           <button class="icon-btn" data-act="refresh" title="Обновить">↻</button>

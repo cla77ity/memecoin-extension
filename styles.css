@@ -40,7 +40,6 @@
   cursor: grab; user-select: none; touch-action: none;
 }
 .brand { display: flex; align-items: center; gap: 4px; font-weight: 700; }
-.logo { color: var(--accent); font-size: 15px; text-shadow: 0 0 8px var(--accent); }
 .title { font-size: 12px; letter-spacing: .3px; }
 .root:not(.mobile) .brand:has(+ .hdr-info:not(:empty)) .title { display: none; }
 .hdr-info { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; justify-content: flex-end; }
@@ -168,3 +167,7 @@
   .grid .card:last-child { grid-column: 1 / -1; }
   .root.mobile .calc-out { grid-template-columns: 1fr; }
 }
+
+/* brand */
+.logo-mark { width: 22px; height: 22px; flex: none; filter: drop-shadow(0 0 6px rgba(20, 241, 149, .45)) drop-shadow(0 0 10px rgba(123, 92, 255, .3)); }
+.grad { background: linear-gradient(90deg, #C9A2FF, #6E9BFF 45%, #14F195); -webkit-background-clip: text; background-clip: text; color: transparent; }
