@@ -59,7 +59,7 @@ APP_FILES = {
     "index.html", "app.js", "app.css", "engine.js", "analyzer.js", "styles.css", "manifest.webmanifest",
     "icons/apple-touch-icon.png", "icons/icon192.png", "icons/icon512.png", "icons/icon48.png",
 }
-PROXY_HOSTS = {"api.dexscreener.com", "api.rugcheck.xyz", "mainnet.helius-rpc.com", "api.mainnet-beta.solana.com"}
+PROXY_HOSTS = {"api.dexscreener.com", "api.rugcheck.xyz", "mainnet.helius-rpc.com", "api.mainnet-beta.solana.com", "api.geckoterminal.com"}
 EXTENSION_ORIGINS = ("chrome-extension://", "moz-extension://", "safari-web-extension://", "extension://")
 
 

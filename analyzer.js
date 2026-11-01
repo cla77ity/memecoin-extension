@@ -310,6 +310,8 @@
       vol5m: S.num(pair && pair.volume && pair.volume.m5),
       vol1h: S.num(pair && pair.volume && pair.volume.h1),
       change5m: S.num(pair && pair.priceChange && pair.priceChange.m5),
+      change1h: S.num(pair && pair.priceChange && pair.priceChange.h1),
+      change24h: S.num(pair && pair.priceChange && pair.priceChange.h24),
       txns5m: pair && pair.txns && pair.txns.m5 ? pair.txns.m5 : null,
       pairCreatedAt: pair ? pair.pairCreatedAt || null : null,
       socials,

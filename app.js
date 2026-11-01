@@ -178,6 +178,7 @@
           <span class="score ${scoreCls}">${ev.score}</span>
         </div>
         <div class="body">
+          ${mcBlockHtml(t)}
           <div class="badge-row">
             <span class="badge badge-${badge.level.toLowerCase()}">${badge.level}</span>
             <span class="verdict ${ev.passed ? 'good' : 'bad'}">${ev.passed ? 'PASS' : 'HIGH RUG RISK'}</span>
@@ -229,7 +230,135 @@
       });
     }
     renderCalc();
+    loadChart(t);
   }
+
+  // ------------------------------------------------------------ market cap now + chart (GeckoTerminal OHLCV)
+  let chartTf = '1h';
+  const chartCache = new Map();
+  const TF = {
+    '1h': { aggregate: 1, limit: 60, label: '1ч' },
+    '6h': { aggregate: 5, limit: 72, label: '6ч' },
+    '24h': { aggregate: 15, limit: 96, label: '24ч' },
+  };
+  const chg = (v, label) => {
+    if (S.num(v) === null) return '';
+    const up = v >= 0;
+    return `<span class="chg ${up ? 'up' : 'down'}">${up ? '▲' : '▼'} ${Math.abs(v).toFixed(Math.abs(v) >= 100 ? 0 : 1)}% <i>${label}</i></span>`;
+  };
+
+  function mcBlockHtml(t) {
+    return `<div class="mc-block">
+        <div class="mc-top">
+          <div class="mc-now"><span class="meta">Маркет-кап сейчас</span><b>${esc(S.fmtUsd(t.marketCap))}</b><span class="meta mono-sm">цена ${esc(S.fmtPrice(t.priceUsd))}</span></div>
+          <div class="mc-changes">${chg(t.change5m, '5м')}${chg(t.change1h, '1ч')}${chg(t.change24h, '24ч')}</div>
+        </div>
+        <div class="seg seg-sm" id="tfSeg">${Object.entries(TF).map(([k, v]) => `<button data-tf="${k}" class="${k === chartTf ? 'active' : ''}">${v.label}</button>`).join('')}</div>
+        <div class="chart" id="chart"><div class="chart-msg"><span class="spinner"></span></div></div>
+      </div>`;
+  }
+
+  function noChartHtml(why) {
+    return `<div class="chart-msg">${esc(why || 'График пока недоступен')}<button class="btn ghost sm" data-dexchart>Открыть график DexScreener</button></div>`;
+  }
+
+  async function loadChart(t) {
+    const box = $('chart');
+    if (!box) return;
+    if (!t.pairAddress) { box.innerHTML = noChartHtml('Пула ещё нет — график появится после первых сделок'); return; }
+    const key = `${t.pairAddress}:${chartTf}`;
+    box.dataset.key = key;
+    let hit = chartCache.get(key);
+    if (!hit || Date.now() - hit.at > 30_000) {
+      const c = TF[chartTf];
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 5000);
+      try {
+        const url = `https://api.geckoterminal.com/api/v2/networks/solana/pools/${t.pairAddress}/ohlcv/minute?aggregate=${c.aggregate}&limit=${c.limit}&currency=usd&token=base`;
+        const res = await transport(url, { signal: ctrl.signal, headers: { accept: 'application/json' } });
+        if (!res.ok) throw new Error(res.status === 404 ? 'GeckoTerminal ещё не видит этот пул' : `HTTP ${res.status}`);
+        const j = await res.json();
+        const list = (j && j.data && j.data.attributes && j.data.attributes.ohlcv_list) || [];
+        hit = { at: Date.now(), data: list.map((r) => ({ ts: r[0] * 1000, c: Number(r[4]) })).filter((p) => p.c > 0).sort((a, b) => a.ts - b.ts) };
+        chartCache.set(key, hit);
+      } catch (e) {
+        const b2 = $('chart');
+        if (b2 && b2.dataset.key === key) b2.innerHTML = noChartHtml(e.name === 'AbortError' ? 'График не загрузился' : String(e.message || e));
+        return;
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+    const b2 = $('chart');
+    if (!b2 || b2.dataset.key !== key) return; // card re-rendered meanwhile
+    if (hit.data.length < 2) { b2.innerHTML = noChartHtml('Слишком мало сделок для графика'); return; }
+    drawChart(b2, hit.data, t);
+  }
+
+  function drawChart(box, data, t) {
+    const supply = t.marketCap && t.priceUsd ? t.marketCap / t.priceUsd : null; // price → market cap
+    const pts = data.map((p) => ({ ts: p.ts, v: supply ? p.c * supply : p.c }));
+    const W = Math.max(260, box.clientWidth || 320);
+    const H = 150;
+    const padT = 10;
+    const padB = 18;
+    let min = Math.min(...pts.map((p) => p.v));
+    let max = Math.max(...pts.map((p) => p.v));
+    if (max === min) { max *= 1.01; min *= 0.99; }
+    const x = (i) => (i / (pts.length - 1)) * W;
+    const y = (v) => padT + (1 - (v - min) / (max - min)) * (H - padT - padB);
+    const line = pts.map((p, i) => `${i ? 'L' : 'M'}${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join('');
+    const area = `${line}L${W},${H - padB}L0,${H - padB}Z`;
+    const fmt = (v) => (supply ? S.fmtUsd(v) : S.fmtPrice(v));
+    const time = (ts) => new Date(ts).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    const last = pts[pts.length - 1];
+    box.innerHTML = `
+      <svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" preserveAspectRatio="none" class="chart-svg">
+        <defs><linearGradient id="cg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0a0a0a" stop-opacity=".14"/><stop offset="1" stop-color="#0a0a0a" stop-opacity="0"/></linearGradient></defs>
+        <line x1="0" x2="${W}" y1="${y(max)}" y2="${y(max)}" class="grid-l"/><line x1="0" x2="${W}" y1="${y(min)}" y2="${y(min)}" class="grid-l"/>
+        <path d="${area}" fill="url(#cg)"/>
+        <path d="${line}" fill="none" stroke="#0a0a0a" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round"/>
+        <circle cx="${x(pts.length - 1)}" cy="${y(last.v)}" r="3.5" fill="#0a0a0a"/>
+        <line class="xh" x1="0" x2="0" y1="${padT}" y2="${H - padB}" visibility="hidden"/>
+      </svg>
+      <div class="chart-ax"><span>${time(pts[0].ts)}</span><span>макс ${esc(fmt(max))} · мин ${esc(fmt(min))}</span><span>${time(last.ts)}</span></div>
+      <div class="chart-tip" hidden></div>`;
+    const svg = box.querySelector('svg');
+    const xh = box.querySelector('.xh');
+    const tip = box.querySelector('.chart-tip');
+    const move = (ev) => {
+      const r = svg.getBoundingClientRect();
+      const rel = Math.min(Math.max((ev.clientX - r.left) / r.width, 0), 1);
+      const i = Math.round(rel * (pts.length - 1));
+      const px = x(i);
+      xh.setAttribute('x1', px); xh.setAttribute('x2', px); xh.setAttribute('visibility', 'visible');
+      tip.hidden = false;
+      tip.textContent = `${fmt(pts[i].v)} · ${time(pts[i].ts)}`;
+      tip.style.left = `${Math.min(Math.max(rel * r.width - 60, 0), r.width - 130)}px`;
+    };
+    const leave = () => { xh.setAttribute('visibility', 'hidden'); tip.hidden = true; };
+    svg.addEventListener('pointerdown', move);
+    svg.addEventListener('pointermove', move);
+    svg.addEventListener('pointerleave', leave);
+    svg.addEventListener('pointerup', () => setTimeout(leave, 1500));
+  }
+
+  document.addEventListener('click', (e) => {
+    const tfb = e.target.closest('[data-tf]');
+    if (tfb && lastResult) {
+      chartTf = tfb.dataset.tf;
+      document.querySelectorAll('#tfSeg button').forEach((b) => b.classList.toggle('active', b === tfb));
+      const box = $('chart');
+      if (box) box.innerHTML = '<div class="chart-msg"><span class="spinner"></span></div>';
+      loadChart(lastResult.token);
+      return;
+    }
+    if (e.target.closest('[data-dexchart]') && lastResult) {
+      const t = lastResult.token;
+      const box = $('chart');
+      if (box) box.innerHTML = `<iframe class="dex-embed" src="https://dexscreener.com/solana/${encodeURIComponent(t.pairAddress || t.mint)}?embed=1&theme=light&info=0&trades=0" loading="lazy" title="DexScreener chart"></iframe>`;
+    }
+  });
 
   // "О проекте": what the coin is tied to + short description + social buttons
   function aboutHtml(t) {
