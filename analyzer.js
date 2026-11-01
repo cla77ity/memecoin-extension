@@ -116,7 +116,13 @@
       const s = getSettings();
       if (!s.heliusApiKey || s.rpcUrl) return null;
       const [r] = await rpcBatch([{ method: 'getAsset', params: { id: mint } }]);
-      return r && r.result ? r.result : null;
+      const asset = r && r.result ? r.result : null;
+      // Off-chain metadata JSON (pump.fun stores description / twitter / telegram / website there).
+      const uri = asset && asset.content && asset.content.json_uri;
+      if (asset && typeof uri === 'string' && /^https:\/\//.test(uri)) {
+        asset._offchain = await fetchJson(uri).catch(() => null);
+      }
+      return asset;
     }
 
     // ---------------------------------------------------------- pipeline
@@ -152,6 +158,13 @@
           onchain(mint),
           heliusAsset(mint),
         ]);
+        const assetOk = settled[4].status === 'fulfilled' && settled[4].value;
+        const report = settled[2].status === 'fulfilled' ? settled[2].value : null;
+        const uri = report && report.tokenMeta && report.tokenMeta.uri;
+        if (!assetOk && typeof uri === 'string' && /^https:\/\//.test(uri)) {
+          const off = await fetchJson(uri).catch(() => null);
+          if (off) settled[4] = { status: 'fulfilled', value: { _offchain: off } };
+        }
         const result = withVerdict(mergeData(mint, target.viewedPair, ...settled));
         cache.set(key, { at: Date.now(), data: result });
         if (cache.size > 200) cache.delete(cache.keys().next().value);
@@ -202,6 +215,17 @@
       if (type === 'telegram' && !socials.telegram) socials.telegram = s.url || s.handle;
     }
     if (info.websites && info.websites[0]) socials.website = info.websites[0].url;
+    // fill gaps from on-chain metadata (pump.fun JSON / DAS)
+    const off = (asset && asset._offchain) || {};
+    const ext = off.extensions || {};
+    const links = (asset && asset.content && asset.content.links) || {};
+    if (!socials.twitter) socials.twitter = off.twitter || ext.twitter || null;
+    if (!socials.telegram) socials.telegram = off.telegram || ext.telegram || null;
+    if (!socials.website) socials.website = off.website || ext.website || links.external_url || null;
+    for (const k of ['twitter', 'telegram', 'website']) {
+      socials[k] = S.normalizeSocial(k, socials[k]) || undefined;
+      if (!socials[k]) delete socials[k];
+    }
 
     const priceUsd = S.num(pair && pair.priceUsd);
     const priceNative = S.num(pair && pair.priceNative);
@@ -268,6 +292,9 @@
     }));
 
     const meta = (asset && asset.content && asset.content.metadata) || {};
+    const rawDesc = (asset && asset._offchain && asset._offchain.description) || meta.description
+      || (report && report.fileMeta && report.fileMeta.description) || '';
+    const description = String(rawDesc).replace(/\s+/g, ' ').trim().slice(0, 600);
     return {
       mint,
       symbol: (pair && pair.baseToken.symbol) || meta.symbol || (report && report.tokenMeta && report.tokenMeta.symbol) || '???',
@@ -292,6 +319,8 @@
       top10Pct,
       devPct,
       holderOwners: holderOwners.slice(0, 40),
+      description,
+      project: S.describeSocials(socials),
       rugScore: summary ? S.num(summary.score_normalised ?? summary.score) : null,
       rugRisks,
       totalHolders: report ? S.num(report.totalHolders) : null,

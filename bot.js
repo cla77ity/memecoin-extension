@@ -82,11 +82,15 @@ function alertText(item, r) {
     '',
     `MC <b>${html(S.fmtUsd(t.marketCap))}</b> · Vol 5m <b>${html(S.fmtUsd(t.vol5m))}</b> · Liq ${html(S.fmtUsd(t.liquidityUsd))}`,
     `Top 10 ${html(S.fmtPct(t.top10Pct))} · Dev ${html(S.fmtPct(t.devPct))} · LP ${html(lp)}`,
-    `Mint ${t.mintAuthority === false ? 'OFF' : 'ON?'} · Freeze ${t.freezeAuthority === false ? 'OFF' : 'ON?'} · ${t.socials.twitter ? 'X ✓' : 'X —'}`,
+    `Mint ${t.mintAuthority === false ? 'OFF' : 'ON?'} · Freeze ${t.freezeAuthority === false ? 'OFF' : 'ON?'}`,
     `${html(SOURCE[item.source] || item.source)} · ~${ageMin} мин`,
     '',
+    `<b>${html((t.project || S.describeSocials(t.socials)).label)}</b>`,
+    t.description ? html(t.description.slice(0, 200)) + (t.description.length > 200 ? '…' : '') : '',
+    [t.socials.twitter && `<a href="${html(t.socials.twitter)}">X</a>`, t.socials.website && `<a href="${html(t.socials.website)}">Сайт</a>`, t.socials.telegram && `<a href="${html(t.socials.telegram)}">Telegram</a>`].filter(Boolean).join(' · '),
+    '',
     '<i>Не финсовет. Проверь сам перед входом.</i>',
-  ].join('\n');
+  ].filter((line, i, arr) => !(line === '' && arr[i - 1] === '')).join('\n');
 }
 
 async function sendAlert(item, r) {

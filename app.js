@@ -183,6 +183,7 @@
             <span class="verdict ${ev.passed ? 'good' : 'bad'}">${ev.passed ? 'PASS' : 'HIGH RUG RISK'}</span>
           </div>
           ${trackedHoldersHtml(t)}
+          ${aboutHtml(t)}
           <div class="grid">
             <div class="card"><div class="sec-title">Rug</div>${kv('Mint', onOff(t.mintAuthority))}${kv('Freeze', onOff(t.freezeAuthority))}${kv('LP burn', lp)}</div>
             <div class="card"><div class="sec-title">Holders</div>${kv('Top 10', level(t.top10Pct, 15, 30))}${kv('Dev', level(t.devPct, 5, 10))}${kv('Всего', esc(t.totalHolders ?? 'n/a'))}</div>
@@ -209,7 +210,6 @@
             <a href="${safeUrl(t.links.photon)}" target="_blank" rel="noopener">Photon</a>
             <a href="${safeUrl(t.links.dexscreener)}" target="_blank" rel="noopener">DEX</a>
             <a href="${safeUrl(t.links.rugcheck)}" target="_blank" rel="noopener">RugCheck</a>
-            ${t.socials.twitter ? `<a href="${safeUrl(t.socials.twitter)}" target="_blank" rel="noopener">𝕏</a>` : ''}
           </div>
           <div class="srcs">${dot(t.sources.dexscreener, 'DexScreener', 'dexscreener')}${dot(t.sources.rugcheck, 'RugCheck', 'rugcheck')}${dot(t.sources.rpc, 'RPC', 'rpc')}
             <span class="mute">${esc(new Date(t.fetchedAt).toLocaleTimeString())}</span></div>
@@ -230,6 +230,29 @@
     }
     renderCalc();
   }
+
+  // "О проекте": what the coin is tied to + short description + social buttons
+  function aboutHtml(t) {
+    const so = t.socials || {};
+    const p = t.project || S.describeSocials(so);
+    const chips = [];
+    if (so.twitter) chips.push(`<a href="${esc(safeUrl(so.twitter))}" target="_blank" rel="noopener">X ${p.handle ? `@${esc(p.handle)}` : p.kind === 'community' ? 'комьюнити' : ''}</a>`);
+    if (so.website) chips.push(`<a href="${esc(safeUrl(so.website))}" target="_blank" rel="noopener">Сайт ${esc(p.site || '')}</a>`);
+    if (so.telegram) chips.push(`<a href="${esc(safeUrl(so.telegram))}" target="_blank" rel="noopener">Telegram</a>`);
+    const desc = t.description
+      ? `<p class="about-desc" data-expand>${esc(t.description)}</p>`
+      : '<p class="about-desc mute">Создатель не добавил описание.</p>';
+    return `<div class="about${p.hasAny ? '' : ' about-none'}">
+        <div class="sec-title">О проекте</div>
+        <div class="about-kind">${esc(p.label)}</div>
+        ${desc}
+        ${chips.length ? `<div class="links">${chips.join('')}</div>` : ''}
+      </div>`;
+  }
+  document.addEventListener('click', (e) => {
+    const d = e.target.closest('[data-expand]');
+    if (d) d.classList.toggle('open');
+  });
 
   function renderCalc() {
     const out = $('calcOut');

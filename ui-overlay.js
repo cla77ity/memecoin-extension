@@ -252,8 +252,20 @@
             ${ev.breakdown.map((r) => `<li class="${r.ok ? 'good' : 'mute'}"><span>${r.ok ? '✓' : '✗'} ${esc(r.label)}</span><span>${esc(r.detail)} · +${r.points}</span></li>`).join('')}
           </ul>
         </div>
+        ${aboutLine(t)}
         ${!filter.approved ? `<div class="filter-note">Фильтр сигналов: ${esc(filter.reasons.join(' · '))}</div>` : ''}
         ${risks}`;
+    }
+
+    function aboutLine(t) {
+      const so = t.socials || {};
+      const p = t.project || S.describeSocials(so);
+      const links = [
+        so.twitter ? `<a href="${safeUrl(so.twitter)}" target="_blank" rel="noopener">X${p.handle ? ` @${esc(p.handle)}` : ''}</a>` : '',
+        so.website ? `<a href="${safeUrl(so.website)}" target="_blank" rel="noopener">${esc(p.site || 'Сайт')}</a>` : '',
+        so.telegram ? `<a href="${safeUrl(so.telegram)}" target="_blank" rel="noopener">Telegram</a>` : '',
+      ].filter(Boolean).join('');
+      return `<div class="about-mini${p.hasAny ? '' : ' none'}"><b>${esc(p.label)}</b>${t.description ? `<p>${esc(t.description)}</p>` : ''}${links ? `<div class="links">${links}</div>` : ''}</div>`;
     }
 
     function renderCalc() {
@@ -290,7 +302,6 @@
           <a href="${safeUrl(t.links.photon)}" target="_blank" rel="noopener">Photon</a>
           <a href="${safeUrl(t.links.dexscreener)}" target="_blank" rel="noopener">DEX</a>
           <a href="${safeUrl(t.links.rugcheck)}" target="_blank" rel="noopener">RugCheck</a>
-          ${t.socials.twitter ? `<a href="${safeUrl(t.socials.twitter)}" target="_blank" rel="noopener">𝕏</a>` : ''}
         </div>
         <div class="srcs">${dot(t.sources.dexscreener, 'DexScreener')}${dot(t.sources.rugcheck, 'RugCheck')}${dot(t.sources.rpc, 'RPC')}
           <span class="mute">${new Date(t.fetchedAt).toLocaleTimeString()}</span></div>`;

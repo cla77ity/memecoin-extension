@@ -222,3 +222,14 @@ body { min-height: 100dvh; }
   font: 600 15px var(--sans); -webkit-tap-highlight-color: transparent;
 }
 .back-link:active { background: var(--l); }
+
+/* ---------- about the project */
+.about { border: 1px solid var(--l); border-radius: 16px; padding: 12px; display: flex; flex-direction: column; gap: 8px; background: var(--bg); }
+.about.about-none { border-style: dashed; background: var(--p); }
+.about .sec-title { margin: 0; }
+.about-kind { font-weight: 650; color: var(--hi); font-size: 14px; line-height: 1.35; }
+.about-none .about-kind { color: var(--mid); }
+.about-desc { color: var(--fg); font-size: 13.5px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; cursor: pointer; }
+.about-desc.open { -webkit-line-clamp: unset; display: block; }
+.about-desc.mute { cursor: default; color: var(--dim); }
+.about .links a { padding: 8px 14px; font-size: 13px; }

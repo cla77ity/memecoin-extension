@@ -215,6 +215,58 @@
   const fmtSol = (v) => (num(v) === null ? 'n/a' : `${num(v) >= 10 ? num(v).toFixed(1) : num(v).toFixed(3)} SOL`);
   const shortAddr = (a) => (typeof a === 'string' && a.length > 10 ? `${a.slice(0, 4)}…${a.slice(-4)}` : a || '');
 
+  // ---------- socials / project profile
+  /** Turns a raw social value (URL, handle, bare domain) into a safe https URL, or null. */
+  function normalizeSocial(kind, value) {
+    if (typeof value !== 'string') return null;
+    let v = value.trim();
+    if (!v || v.length > 300) return null;
+    if (/^http:\/\//i.test(v)) v = `https://${v.slice(7)}`;
+    if (!/^https:\/\//i.test(v)) {
+      if (kind === 'twitter' && /^@?[A-Za-z0-9_]{1,15}$/.test(v)) return `https://x.com/${v.replace(/^@/, '')}`;
+      if (kind === 'telegram' && /^@?[A-Za-z0-9_]{4,32}$/.test(v)) return `https://t.me/${v.replace(/^@/, '')}`;
+      if (/^[a-z0-9.-]+\.[a-z]{2,}(\/\S*)?$/i.test(v)) v = `https://${v}`;
+      else return null;
+    }
+    try {
+      const u = new URL(v);
+      return u.protocol === 'https:' ? u.toString().replace(/\/$/, '') : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /**
+   * What the coin is tied to: own X account, someone else's tweet (narrative coin), X community, website, or nothing.
+   * @returns {{kind:string, label:string, handle:string|null, site:string|null, hasAny:boolean}}
+   */
+  function describeSocials(socials = {}) {
+    let kind = 'none';
+    let handle = null;
+    if (socials.twitter) {
+      try {
+        const u = new URL(socials.twitter);
+        const parts = u.pathname.split('/').filter(Boolean);
+        if (parts[1] === 'status') { kind = 'tweet'; handle = parts[0]; }
+        else if (parts[0] === 'i' && parts[1] === 'communities') kind = 'community';
+        else if (parts[0]) { kind = 'profile'; handle = parts[0]; }
+      } catch (_) { /* ignore */ }
+    }
+    let site = null;
+    if (socials.website) { try { site = new URL(socials.website).hostname.replace(/^www\./, ''); } catch (_) { /* ignore */ } }
+    const bits = [];
+    if (kind === 'profile') bits.push(`свой X-аккаунт @${handle}`);
+    if (kind === 'tweet') bits.push(`привязана к твиту @${handle}`);
+    if (kind === 'community') bits.push('X-комьюнити');
+    if (site) bits.push(`сайт ${site}`);
+    if (socials.telegram) bits.push('Telegram');
+    const hasAny = bits.length > 0;
+    const label = !hasAny ? 'Ни к чему не привязана: нет X, сайта и Telegram'
+      : kind === 'tweet' && !site ? `Монета на нарративе: ${bits.join(' · ')}`
+        : `Проект: ${bits.join(' · ')}`;
+    return { kind, label, handle, site, hasAny };
+  }
+
   function links(mint, pairAddress) {
     return {
       photon: pairAddress ? `https://photon-sol.tinyastro.io/en/lp/${pairAddress}` : `https://photon-sol.tinyastro.io/en/discover?search=${mint}`,
@@ -229,5 +281,6 @@
     isBase58Address, extractAddresses, isActiveTwitterLink,
     evaluateTokenPotential, classifyRisk, applySignalFilter, calcPosition,
     fmtUsd, fmtPrice, fmtPct, fmtSol, shortAddr, links, num,
+    normalizeSocial, describeSocials,
   });
 })(typeof globalThis !== 'undefined' ? globalThis : self);
