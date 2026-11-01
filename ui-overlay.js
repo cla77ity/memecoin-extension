@@ -226,6 +226,7 @@
           <span class="verdict ${ev.passed ? 'good' : 'bad'}">${ev.passed ? 'PASS' : 'HIGH RUG RISK'}</span>
           ${state.status === 'loading' ? '<span class="spinner sm"></span>' : ''}
         </div>
+        ${aboutLine(t)}
         <div class="grid">
           <div class="card">
             <div class="sec-title">RugCheck</div>
@@ -252,7 +253,6 @@
             ${ev.breakdown.map((r) => `<li class="${r.ok ? 'good' : 'mute'}"><span>${r.ok ? '✓' : '✗'} ${esc(r.label)}</span><span>${esc(r.detail)} · +${r.points}</span></li>`).join('')}
           </ul>
         </div>
-        ${aboutLine(t)}
         ${!filter.approved ? `<div class="filter-note">Фильтр сигналов: ${esc(filter.reasons.join(' · '))}</div>` : ''}
         ${risks}`;
     }
