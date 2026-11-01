@@ -33,12 +33,35 @@ cloudflared tunnel --url http://localhost:8080   # бесплатно, даёт 
 
 Если какой-то API не отдаёт CORS-заголовки браузеру, приложение само переключится на `/proxy` сервера. Прокси пропускает только DexScreener, RugCheck, Helius и Solana RPC и работает только с токеном.
 
+## 📡 Live-сканер и Telegram-бот
+
+Сканер ловит **каждый новый токен** и присылает алерт только по тем, что прошли фильтр.
+
+1. **Поиск:** PumpPortal WebSocket (все запуски pump.fun и миграции на Raydium/PumpSwap) и новые профили DexScreener.
+2. **Предфильтр:** пакетный запрос DexScreener, 30 токенов за раз: Vol 5m ≥ порога, ликвидность ≥ `minLiqUsd`.
+3. **Полная проверка:** RugCheck + Helius, не чаще `maxChecksPerMin` в минуту, чтобы не сжечь бесплатные лимиты.
+4. **Алерт:** фильтр сигналов пройден (Score, Freeze OFF, Top 10, Vol 5m) и бейдж не DANGER.
+
+**В приложении:** вкладка **Live** → включить. Работает, пока приложение открыто; «Не гасить экран» держит iPhone активным (удобно на зарядке).
+
+**Telegram-бот (`bot.js`)** — те же правила, работает 24/7 и пишет в личку или в канал:
+1. В Telegram открыть @BotFather → `/newbot` → скопировать токен.
+2. Развернуть репозиторий на любом хостинге с Docker (Railway, Render Background Worker, VPS). Есть `Dockerfile`, Node 22, зависимостей нет.
+3. Переменные окружения: `TELEGRAM_BOT_TOKEN`, `HELIUS_API_KEY`, затем `TELEGRAM_CHAT_ID`. Чтобы узнать chat id, напиши боту `/start`, он ответит. Для канала: добавь бота админом и укажи `@channel` или `-100…`.
+4. Необязательные: `MIN_VOL_5M` (30000), `MAX_TOP10` (20), `MIN_SCORE` (70), `MIN_LIQ` (10000), `MAX_CHECKS_PER_MIN` (6), `WATCH_MINUTES` (30), `MIGRATIONS_ONLY=1`.
+
+Команды бота: `/start` (chat id), `/status` (статистика). Локально: `TELEGRAM_BOT_TOKEN=… HELIUS_API_KEY=… node bot.js`.
+
+> Алерт — это прошедший фильтр токен, а не гарантия. Если публикуешь алерты в канал, подписывай их как «не финсовет».
+
 ## Структура
 
 | Файл | Что делает |
 |---|---|
 | `manifest.json` | MV3: `storage`, `notifications`, `activeTab`, `scripting`, `alarms` + host permissions для DexScreener / RugCheck / Helius / Solana RPC |
 | `background.js` | Service worker: API-агрегатор (таймаут 1.5 с на запрос), кэш 12 с, дедуп запросов, WebSocket-клиент с автопереподключением, фильтр сигналов, уведомления |
+| `scanner.js` | Live-сканер: поток новых токенов → предфильтр → полная проверка → алерт (общий для приложения и бота) |
+| `bot.js` / `Dockerfile` | Telegram-бот с алертами 24/7 |
 | `analyzer.js` | Общий конвейер данных (расширение + веб-приложение): DexScreener + RugCheck + RPC → снимок токена |
 | `index.html` / `app.js` / `app.css` / `manifest.webmanifest` | Веб-приложение для iPhone (PWA) |
 | `engine.js` | Общая логика (SW + content + popup + web app): `evaluateTokenPotential`, `classifyRisk`, `applySignalFilter`, `calcPosition`, форматтеры |

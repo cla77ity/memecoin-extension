@@ -20,6 +20,12 @@
     wsUrl: 'ws://localhost:8080',
     wsEnabled: true,
     notifyEnabled: true,
+    liveEnabled: false,     // live scanner of every new launch
+    minLiqUsd: 10000,
+    watchMinutes: 30,
+    maxChecksPerMin: 6,
+    liveMigrationsOnly: false,
+    keepAwake: true,
   });
 
   const WSOL = 'So11111111111111111111111111111111111111112';

@@ -47,6 +47,32 @@
         <div id="recent"></div>
       </section>
 
+      <!-- LIVE -->
+      <section class="view" id="view-live">
+        <div class="live-head">
+          <div class="live-top">
+            <div>
+              <h2>Live-сканер</h2>
+              <p class="meta" id="liveState">Выключен</p>
+            </div>
+            <input type="checkbox" class="toggle" data-k="liveEnabled" id="liveToggle">
+          </div>
+          <div class="live-stats">
+            <div><b id="stSeen">0</b><span>новых</span></div>
+            <div><b id="stWatch">0</b><span>следим</span></div>
+            <div><b id="stCand">0</b><span>кандидаты</span></div>
+            <div><b id="stAlerts">0</b><span>алерты</span></div>
+          </div>
+          <p class="hint" id="liveHint">Ловит каждый запуск на pump.fun, миграции на Raydium/PumpSwap и новые профили DexScreener. Алерт приходит, только если токен прошёл фильтр. Работает, пока приложение открыто.</p>
+        </div>
+        <div class="seg" id="liveFilter">
+          <button data-f="hot" class="active">Горячие</button>
+          <button data-f="alerted">Алерты</button>
+          <button data-f="all">Все</button>
+        </div>
+        <div id="liveList" class="live-list"></div>
+      </section>
+
       <!-- SIGNALS -->
       <section class="view" id="view-signals">
         <div class="row-between">
@@ -73,6 +99,18 @@
             <label class="field"><span>Min Score</span><input type="number" inputmode="numeric" data-k="minScore"></label>
             <label class="field"><span>Риск на сделку, %</span><input type="number" inputmode="decimal" data-k="riskPct"></label>
           </div>
+        </div>
+
+        <div class="sec-title">Live-сканер</div>
+        <div class="group">
+          <div class="form-grid">
+            <label class="field"><span>Min ликвидность, $</span><input type="number" inputmode="numeric" data-k="minLiqUsd"></label>
+            <label class="field"><span>Следить, мин</span><input type="number" inputmode="numeric" data-k="watchMinutes"></label>
+            <label class="field"><span>Проверок в минуту</span><input type="number" inputmode="numeric" data-k="maxChecksPerMin"></label>
+          </div>
+          <label class="switch-row"><input type="checkbox" class="toggle" data-k="liveMigrationsOnly"><span>Только мигрировавшие (Raydium / PumpSwap)</span></label>
+          <label class="switch-row"><input type="checkbox" class="toggle" data-k="keepAwake"><span>Не гасить экран, пока работает Live</span></label>
+          <p class="hint">Порог объёма, Top 10 и Score берутся из «Фильтра сигналов» выше. Больше проверок в минуту — быстрее, но расходует лимит Helius.</p>
         </div>
 
         <div class="sec-title">Депозит и Take Profit</div>
@@ -103,7 +141,8 @@
 
     <nav class="tabbar">
       <button data-view="scan" class="active">Скан</button>
-      <button data-view="signals">Сигналы<i class="count" id="sigCount" hidden></i></button>
+      <button data-view="live">Live</button>
+      <button data-view="signals">Алерты<i class="count" id="sigCount" hidden></i></button>
       <button data-view="settings">Настройки</button>
     </nav>
     <div class="toast" id="toast" hidden></div>
@@ -111,6 +150,7 @@
 
   <script src="engine.js"></script>
   <script src="analyzer.js"></script>
+  <script src="scanner.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

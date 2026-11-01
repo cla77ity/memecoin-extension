@@ -49,6 +49,7 @@
     document.querySelectorAll('.tabbar button').forEach((b) => b.classList.toggle('active', b.dataset.view === name));
     document.querySelectorAll('.view').forEach((v) => v.classList.toggle('active', v.id === `view-${name}`));
     if (name === 'signals') { unseen = 0; renderCount(); }
+    if (name === 'live') renderLive();
     window.scrollTo(0, 0);
   }
   document.querySelectorAll('.tabbar button').forEach((b) => b.addEventListener('click', () => showView(b.dataset.view)));
@@ -329,15 +330,140 @@
         reasons: [`Ошибка анализа: ${e.message || e}`], channel: String(msg.channel || 'signal').slice(0, 80), links: S.links(address, null),
       };
     }
+    pushLog(entry);
+  }
+
+  function pushLog(entry) {
     log = [entry, ...log].slice(0, 100);
     LS.set('signalLog', log);
     renderLog();
     if (entry.approved) {
       if (!$('view-signals').classList.contains('active')) { unseen += 1; renderCount(); }
-      toast(`SIGNAL  $${entry.symbol} · score ${entry.score} · MC ${S.fmtUsd(entry.marketCap)}`);
+      toast(`$${entry.symbol} · Score ${entry.score} · MC ${S.fmtUsd(entry.marketCap)} · ${entry.channel}`);
       beep();
     }
   }
+
+  // ------------------------------------------------------------ live scanner (every new launch)
+  let liveFilter = 'hot';
+  let liveRenderPending = false;
+  let wakeLock = null;
+  const SRC_LABEL = { pump: 'Live · pump.fun', migration: 'Live · миграция', profile: 'Live · DexScreener' };
+  const SRC_SHORT = { pump: 'pump', migration: 'migr', profile: 'dex' };
+  const STATUS_LABEL = { new: 'новый', watch: 'следим', candidate: 'кандидат', checking: 'проверка…', alerted: 'алерт', rejected: 'отсеян' };
+
+  const scanner = globalThis.SolSniperScanner.createScanner({
+    analyzer,
+    getSettings: () => settings,
+    fetchImpl: transport,
+    onEvent: (type, data) => {
+      if (type === 'alert') {
+        const t = data.result.token;
+        const now = Date.now();
+        pushLog({
+          id: `${t.mint}:${now}`, ts: now, mint: t.mint, symbol: t.symbol, score: data.result.evaluation.score, badge: data.result.badge.level,
+          approved: true, reasons: [], marketCap: t.marketCap, vol5m: t.vol5m, top10Pct: t.top10Pct,
+          channel: SRC_LABEL[data.item.source] || 'Live', links: t.links,
+        });
+      }
+      scheduleLiveRender();
+    },
+  });
+
+  function scheduleLiveRender() {
+    if (liveRenderPending) return;
+    liveRenderPending = true;
+    setTimeout(() => { liveRenderPending = false; renderLive(); }, 700);
+  }
+  const ago = (ts) => {
+    const sec = Math.max(0, Math.round((Date.now() - ts) / 1000));
+    return sec < 60 ? `${sec} с` : `${Math.round(sec / 60)} мин`;
+  };
+
+  function renderLive() {
+    const st = scanner.status();
+    $('stSeen').textContent = st.seen;
+    $('stWatch').textContent = st.watching;
+    $('stCand').textContent = st.candidates;
+    $('stAlerts').textContent = st.alerts;
+    const stateTxt = {
+      connecting: 'Подключаюсь к потоку…', live: 'В эфире · ловлю новые запуски', reconnecting: 'Переподключение…',
+      error: 'Поток недоступен, повторяю…', unsupported: 'Браузер не поддерживает WebSocket',
+    }[st.stream] || 'Выключен';
+    $('liveState').textContent = st.running ? stateTxt : 'Выключен';
+    $('liveState').classList.toggle('on', st.running && st.stream === 'live');
+    if (!$('view-live').classList.contains('active')) return;
+
+    let items = scanner.list();
+    if (liveFilter === 'hot') items = items.filter((t) => t.metrics && (t.metrics.vol5m || 0) > 0);
+    else if (liveFilter === 'alerted') items = items.filter((t) => t.status === 'alerted');
+    items.sort(liveFilter === 'all'
+      ? (a, b) => b.firstSeen - a.firstSeen
+      : (a, b) => (b.status === 'alerted') - (a.status === 'alerted') || ((b.metrics && b.metrics.vol5m) || 0) - ((a.metrics && a.metrics.vol5m) || 0));
+    items = items.slice(0, 60);
+    if (!items.length) {
+      const msg = !st.running ? 'Включи Live-сканер переключателем выше.'
+        : liveFilter === 'alerted' ? 'Пока ни один токен не прошёл фильтр. Это нормально: проходит меньшинство.'
+          : 'Собираю данные… Первые цифры появятся примерно через минуту.';
+      $('liveList').innerHTML = `<div class="empty">${msg}</div>`;
+      return;
+    }
+    $('liveList').innerHTML = items.map((t) => {
+      const m = t.metrics || {};
+      const score = (t.status === 'alerted' || t.status === 'rejected') && t.score != null ? `${t.score} · ` : '';
+      return `
+      <button class="live-row ${esc(t.status)}" data-mint="${esc(t.mint)}">
+        <div class="lr-main"><b>${esc(t.symbol ? `$${t.symbol}` : S.shortAddr(t.mint))}</b><span class="tag">${esc(SRC_SHORT[t.source] || t.source)}</span><span class="meta">${ago(t.firstSeen)}</span></div>
+        <div class="lr-nums"><span>MC ${esc(S.fmtUsd(m.mc))}</span><span>Vol 5m ${esc(S.fmtUsd(m.vol5m))}</span></div>
+        <div class="lr-st"><span class="st-chip ${esc(t.status)}">${score}${esc(STATUS_LABEL[t.status] || t.status)}</span>${t.status === 'rejected' && t.reasons[0] ? `<span class="meta lr-why">${esc(t.reasons[0])}</span>` : ''}</div>
+      </button>`;
+    }).join('');
+  }
+
+  $('liveList').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-mint]');
+    if (!b) return;
+    $('caInput').value = b.dataset.mint;
+    showView('scan');
+    scan({ address: b.dataset.mint, kind: 'mint' });
+  });
+  $('liveFilter').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-f]');
+    if (!b) return;
+    liveFilter = b.dataset.f;
+    document.querySelectorAll('#liveFilter button').forEach((x) => x.classList.toggle('active', x === b));
+    renderLive();
+  });
+
+  // Screen Wake Lock keeps iOS from sleeping (and freezing the stream) while Live runs, e.g. on a charger.
+  async function setKeepAwake(on) {
+    try {
+      if (on && 'wakeLock' in navigator && !wakeLock && document.visibilityState === 'visible') {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => { wakeLock = null; });
+      } else if (!on && wakeLock) {
+        await wakeLock.release();
+        wakeLock = null;
+      }
+    } catch (_) { /* not supported / denied */ }
+  }
+  function applyLive() {
+    if (settings.liveEnabled) scanner.start(); else scanner.stop();
+    setKeepAwake(settings.liveEnabled && settings.keepAwake);
+    $('liveToggle').checked = !!settings.liveEnabled;
+    renderLive();
+  }
+  $('liveToggle').addEventListener('change', () => {
+    settings.liveEnabled = $('liveToggle').checked;
+    saveSettings();
+    applyLive();
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || !settings.liveEnabled) return;
+    scanner.wake();
+    setKeepAwake(settings.keepAwake);
+  });
+  setInterval(() => { if (scanner.isRunning()) renderLive(); }, 5000);
 
   function renderCount() {
     $('sigCount').hidden = unseen === 0;
@@ -430,6 +556,7 @@
         saveSettings();
         analyzer.clearCache();
         if (k === 'heliusApiKey' || k === 'rpcUrl') checkConnections();
+        if (k === 'keepAwake') setKeepAwake(settings.liveEnabled && settings.keepAwake);
         if (['serverUrl', 'serverToken', 'wsEnabled'].includes(k)) {
           proxiedHosts.clear();
           LS.set('proxiedHosts', []);
@@ -510,4 +637,5 @@
     scan(parseTarget(initial));
   }
   else checkConnections();
+  applyLive();
 })();
