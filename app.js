@@ -150,6 +150,7 @@
             <span class="badge badge-${badge.level.toLowerCase()}">${badge.level}</span>
             <span class="verdict ${ev.passed ? 'good' : 'bad'}">${ev.passed ? 'PASS' : 'HIGH RUG RISK'}</span>
           </div>
+          ${trackedHoldersHtml(t)}
           <div class="grid">
             <div class="card"><div class="sec-title">Rug</div>${kv('Mint', onOff(t.mintAuthority))}${kv('Freeze', onOff(t.freezeAuthority))}${kv('LP burn', lp)}</div>
             <div class="card"><div class="sec-title">Holders</div>${kv('Top 10', level(t.top10Pct, 15, 30))}${kv('Dev', level(t.devPct, 5, 10))}${kv('Всего', esc(t.totalHolders ?? 'n/a'))}</div>
@@ -341,7 +342,55 @@
       if (!$('view-signals').classList.contains('active')) { unseen += 1; renderCount(); }
       toast(`$${entry.symbol} · Score ${entry.score} · MC ${S.fmtUsd(entry.marketCap)} · ${entry.channel}`);
       beep();
+      if (settings.notifyEnabled) {
+        notify(`$${entry.symbol} · Score ${entry.score}/100`, `MC ${S.fmtUsd(entry.marketCap)} · Vol 5m ${S.fmtUsd(entry.vol5m)} · Top 10 ${S.fmtPct(entry.top10Pct)}\n${entry.channel}`, entry.mint, `alert-${entry.mint}`);
+      }
     }
+  }
+
+  // ------------------------------------------------------------ system notifications (iOS: Home Screen app, 16.4+)
+  let swReg = null;
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').then((r) => { swReg = r; }).catch(() => {});
+    navigator.serviceWorker.addEventListener('message', (e) => {
+      if (!e.data || e.data.type !== 'open') return;
+      const ca = new URL(e.data.url, location.href).searchParams.get('ca');
+      if (ca) { showView('scan'); $('caInput').value = ca; scan(parseTarget(ca)); }
+    });
+  }
+  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent);
+  const isStandalone = () => window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+
+  function notifState() {
+    if (!('Notification' in window)) return isIOS && !isStandalone() ? 'need-home' : 'unsupported';
+    return Notification.permission;
+  }
+  function renderNotif() {
+    const st = notifState();
+    const text = {
+      granted: 'Уведомления включены. Приходят, пока приложение открыто или недавно свёрнуто. При заблокированном телефоне — через Telegram-бота.',
+      default: 'Разреши уведомления, чтобы алерты приходили баннером, как сообщения.',
+      denied: 'Уведомления запрещены. Включи их: Настройки iPhone → Уведомления → SolSniper.',
+      'need-home': 'На iPhone уведомления работают только в приложении с экрана «Домой»: Поделиться → На экран «Домой», затем открой его оттуда.',
+      unsupported: 'Этот браузер не поддерживает уведомления. Используй Safari и экран «Домой».',
+    }[st];
+    $('notifStatus').textContent = text;
+    $('notifBtn').hidden = st !== 'default';
+  }
+  $('notifBtn').addEventListener('click', async () => {
+    try { await Notification.requestPermission(); } catch (_) { /* old API */ }
+    renderNotif();
+    if (notifState() === 'granted') notify('Уведомления включены', 'Сюда будут приходить алерты SolSniper.', null, 'welcome');
+  });
+
+  async function notify(title, body, mint, tag) {
+    if (notifState() !== 'granted') return;
+    const url = mint ? `./?ca=${mint}` : './';
+    try {
+      const reg = swReg || (navigator.serviceWorker && await navigator.serviceWorker.ready);
+      if (reg && reg.showNotification) await reg.showNotification(title, { body, icon: 'icons/icon192.png', badge: 'icons/icon192.png', tag, data: { url } });
+      else new Notification(title, { body, tag });
+    } catch (_) { /* ignore */ }
   }
 
   // ------------------------------------------------------------ live scanner (every new launch)
@@ -357,6 +406,7 @@
     getSettings: () => settings,
     fetchImpl: transport,
     onEvent: (type, data) => {
+      if (type === 'trade') { onTrade(data); return; }
       if (type === 'alert') {
         const t = data.result.token;
         const now = Date.now();
@@ -382,6 +432,7 @@
 
   function renderLive() {
     const st = scanner.status();
+    if ((settings.wallets || []).length) renderWallets();
     $('stSeen').textContent = st.seen;
     $('stWatch').textContent = st.watching;
     $('stCand').textContent = st.candidates;
@@ -465,6 +516,136 @@
   });
   setInterval(() => { if (scanner.isRunning()) renderLive(); }, 5000);
 
+  // ------------------------------------------------------------ Live: launches / wallets switch
+  $('liveMode').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-m]');
+    if (!b) return;
+    document.querySelectorAll('#liveMode button').forEach((x) => x.classList.toggle('active', x === b));
+    $('liveLaunches').hidden = b.dataset.m !== 'launches';
+    $('liveWallets').hidden = b.dataset.m !== 'wallets';
+    if (b.dataset.m === 'wallets') renderTrades();
+  });
+
+  // ------------------------------------------------------------ tracked wallets (KOL / traders)
+  let trades = LS.get('walletTrades', []);
+  const tokenInfo = new Map();   // mint -> { symbol, mc }
+  const pendingInfo = new Set();
+  const clusterAlerted = new Set(LS.get('clusterAlerted', []));
+  const CLUSTER_WINDOW_MS = 30 * 60_000;
+  const walletName = (addr) => {
+    const w = (settings.wallets || []).find((x) => x.address === addr);
+    return (w && w.label) || S.shortAddr(addr);
+  };
+
+  function renderWallets() {
+    const list = settings.wallets || [];
+    $('walletChips').innerHTML = list.map((w) => `<span class="w-chip"><b>${esc(w.label || S.shortAddr(w.address))}</b><span class="mono">${esc(S.shortAddr(w.address))}</span><button data-wdel="${esc(w.address)}" aria-label="Удалить">×</button></span>`).join('');
+    const st = scanner.status();
+    $('walletState').textContent = !list.length ? 'Добавь кошельки KOL или трейдеров'
+      : st.stream === 'live' ? `Слежу за ${list.length} · в эфире` : `Слежу за ${list.length} · подключение…`;
+  }
+  $('wAdd').addEventListener('click', () => {
+    const addr = $('wAddr').value.trim();
+    if (!S.isBase58Address(addr)) { toast('Это не адрес Solana-кошелька'); return; }
+    const list = (settings.wallets || []).filter((w) => w.address !== addr);
+    list.push({ address: addr, label: $('wLabel').value.trim().slice(0, 24) });
+    if (list.length > 50) { toast('Максимум 50 кошельков'); return; }
+    settings.wallets = list;
+    saveSettings();
+    $('wAddr').value = '';
+    $('wLabel').value = '';
+    scanner.setWallets(settings.wallets);
+    renderWallets();
+  });
+  $('walletChips').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-wdel]');
+    if (!b) return;
+    settings.wallets = (settings.wallets || []).filter((w) => w.address !== b.dataset.wdel);
+    saveSettings();
+    scanner.setWallets(settings.wallets);
+    renderWallets();
+  });
+
+  function buyersOf(mint) {
+    const since = Date.now() - CLUSTER_WINDOW_MS;
+    return [...new Set(trades.filter((t) => t.mint === mint && t.side === 'buy' && t.ts >= since).map((t) => t.wallet))];
+  }
+
+  function onTrade(tr) {
+    trades = [tr, ...trades].slice(0, 150);
+    LS.set('walletTrades', trades);
+    if (!tokenInfo.has(tr.mint)) pendingInfo.add(tr.mint);
+    const sym = tokenInfo.get(tr.mint) && tokenInfo.get(tr.mint).symbol;
+    const name = walletName(tr.wallet);
+    const what = sym ? `$${sym}` : S.shortAddr(tr.mint);
+    if (settings.walletNotify && tr.side === 'buy') {
+      notify(`${name} купил ${what}`, `${tr.sol != null ? `${tr.sol.toFixed(2)} SOL` : ''}${tr.mcSol ? ` · MC ${Math.round(tr.mcSol)} SOL` : ''}`, tr.mint, `buy-${tr.wallet}-${tr.mint}`);
+    }
+    const buyers = buyersOf(tr.mint);
+    if (tr.side === 'buy' && buyers.length >= 2 && !clusterAlerted.has(tr.mint)) {
+      clusterAlerted.add(tr.mint);
+      LS.set('clusterAlerted', [...clusterAlerted].slice(-200));
+      const names = buyers.map(walletName).join(', ');
+      toast(`${buyers.length} кошелька зашли в ${what}: ${names}`);
+      beep();
+      if (settings.walletNotify) notify(`${buyers.length} кошелька купили ${what}`, names, tr.mint, `cluster-${tr.mint}`);
+    }
+    renderTrades();
+  }
+
+  // Resolve symbols / market caps for traded mints in one DexScreener batch.
+  setInterval(async () => {
+    if (!pendingInfo.size) return;
+    const mints = [...pendingInfo].slice(0, 30);
+    mints.forEach((m) => pendingInfo.delete(m));
+    try {
+      const res = await transport(`https://api.dexscreener.com/tokens/v1/solana/${mints.join(',')}`, { headers: { accept: 'application/json' } });
+      const pairs = res.ok ? await res.json() : [];
+      for (const p of Array.isArray(pairs) ? pairs : []) {
+        const m = p.baseToken && p.baseToken.address;
+        if (m && !tokenInfo.has(m)) tokenInfo.set(m, { symbol: p.baseToken.symbol, mc: S.num(p.marketCap || p.fdv) });
+      }
+      renderTrades();
+    } catch (_) { mints.forEach((m) => pendingInfo.add(m)); }
+  }, 4000);
+
+  function renderTrades() {
+    renderWallets();
+    if ($('liveWallets').hidden || !$('view-live').classList.contains('active')) return;
+    if (!trades.length) {
+      $('tradeList').innerHTML = `<div class="empty">${(settings.wallets || []).length ? 'Ждём сделок… Они появятся здесь сразу, как кошелёк купит или продаст.' : 'Добавь хотя бы один кошелёк выше.'}</div>`;
+      return;
+    }
+    $('tradeList').innerHTML = trades.slice(0, 80).map((tr) => {
+      const info = tokenInfo.get(tr.mint) || {};
+      if (!tokenInfo.has(tr.mint)) pendingInfo.add(tr.mint);
+      const n = tr.side === 'buy' ? buyersOf(tr.mint).length : 0;
+      return `
+      <button class="live-row trade ${tr.side}" data-mint="${esc(tr.mint)}">
+        <div class="lr-main"><b>${esc(info.symbol ? `$${info.symbol}` : S.shortAddr(tr.mint))}</b><span class="st-chip ${tr.side === 'buy' ? 'alerted' : ''}">${tr.side === 'buy' ? 'покупка' : 'продажа'}</span>${n >= 2 ? `<span class="st-chip candidate">${n} кошелька</span>` : ''}<span class="meta">${ago(tr.ts)}</span></div>
+        <div class="lr-nums"><span>${esc(walletName(tr.wallet))}</span><span>${tr.sol != null ? `${esc(tr.sol.toFixed(2))} SOL` : ''}</span><span>MC ${esc(info.mc != null ? S.fmtUsd(info.mc) : tr.mcSol ? `${Math.round(tr.mcSol)} SOL` : 'n/a')}</span></div>
+      </button>`;
+    }).join('');
+  }
+  $('tradeList').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-mint]');
+    if (!b) return;
+    $('caInput').value = b.dataset.mint;
+    showView('scan');
+    scan({ address: b.dataset.mint, kind: 'mint' });
+  });
+
+  function trackedHoldersHtml(t) {
+    const owners = new Set(t.holderOwners || []);
+    const hits = (settings.wallets || []).filter((w) => owners.has(w.address));
+    const buyers = buyersOf(t.mint).filter((a) => !hits.some((h) => h.address === a));
+    if (!hits.length && !buyers.length) return '';
+    const parts = [];
+    if (hits.length) parts.push(`держат: ${hits.map((w) => esc(w.label || S.shortAddr(w.address))).join(', ')}`);
+    if (buyers.length) parts.push(`покупали за 30 мин: ${buyers.map((a) => esc(walletName(a))).join(', ')}`);
+    return `<div class="filter-note filter-ok">Твои кошельки · ${parts.join(' · ')}</div>`;
+  }
+
   function renderCount() {
     $('sigCount').hidden = unseen === 0;
     $('sigCount').textContent = unseen;
@@ -520,7 +701,7 @@
     try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); audioCtx.resume(); } catch (_) { /* no audio */ }
   }, { once: true, passive: true });
   function beep() {
-    if (!audioCtx) return;
+    if (!audioCtx || settings.soundEnabled === false) return;
     try {
       const o = audioCtx.createOscillator();
       const g = audioCtx.createGain();
@@ -659,4 +840,7 @@
   }
   else checkConnections();
   applyLive();
+  scanner.setWallets(settings.wallets || []);
+  renderWallets();
+  renderNotif();
 })();

@@ -40,6 +40,9 @@
     let busy = false;
     let timers = [];
     let checkTimes = [];
+    let wallets = [];            // [{ address, label }] — tracked trader / KOL wallets
+    let walletSubs = [];         // addresses currently subscribed on the socket
+    const walletLabel = () => new Map(wallets.map((w) => [w.address, w.label || '']));
 
     const cfg = () => ({ ...S.DEFAULT_SETTINGS, ...LIVE_DEFAULTS, ...getSettings() });
     const emit = (type, data) => { try { onEvent(type, data); } catch (e) { log('onEvent error', e); } };
@@ -85,8 +88,21 @@
     }
 
     // ------------------------------------------------------------ discovery: PumpPortal stream
+    const needSocket = () => running || wallets.length > 0;
+    const sendJson = (o) => { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); };
+
+    function syncWalletSubs() {
+      const want = wallets.map((w) => w.address);
+      const drop = walletSubs.filter((a) => !want.includes(a));
+      const add = want.filter((a) => !walletSubs.includes(a));
+      if (!ws || ws.readyState !== 1) return;
+      if (drop.length) sendJson({ method: 'unsubscribeAccountTrade', keys: drop });
+      if (add.length) sendJson({ method: 'subscribeAccountTrade', keys: add });
+      walletSubs = want;
+    }
+
     function connect() {
-      if (!running) return;
+      if (!needSocket() || ws) return;
       if (!WS) { setState('unsupported'); return; }
       let sock;
       try { sock = new WS(PUMPPORTAL_WS); } catch (e) { setState('error'); reconnect(); return; }
@@ -95,13 +111,29 @@
       sock.onopen = () => {
         wsDelay = 1000;
         setState('live');
-        sock.send(JSON.stringify({ method: 'subscribeNewToken' }));
-        sock.send(JSON.stringify({ method: 'subscribeMigration' }));
+        if (running) {
+          sock.send(JSON.stringify({ method: 'subscribeNewToken' }));
+          sock.send(JSON.stringify({ method: 'subscribeMigration' }));
+        }
+        walletSubs = [];
+        syncWalletSubs();
       };
       sock.onmessage = (ev) => {
         let m;
         try { m = JSON.parse(typeof ev.data === 'string' ? ev.data : String(ev.data)); } catch (_) { return; }
         if (!m || typeof m.mint !== 'string') return;
+        if ((m.txType === 'buy' || m.txType === 'sell') && m.traderPublicKey) {
+          const labels = walletLabel();
+          if (labels.has(m.traderPublicKey)) {
+            emit('trade', {
+              wallet: m.traderPublicKey, label: labels.get(m.traderPublicKey), mint: m.mint, side: m.txType,
+              sol: S.num(m.solAmount), tokens: S.num(m.tokenAmount), mcSol: S.num(m.marketCapSol), pool: m.pool || '',
+              signature: m.signature || '', ts: Date.now(),
+            });
+          }
+          return;
+        }
+        if (!running) return;
         if (m.txType === 'migrate' || m.txType === 'migration') add(m.mint, { source: 'migration' });
         else if (m.txType === 'create') add(m.mint, { source: 'pump', symbol: m.symbol, name: m.name });
       };
@@ -109,12 +141,13 @@
       sock.onclose = () => {
         if (ws !== sock) return;
         ws = null;
-        setState(running ? 'reconnecting' : 'off');
+        walletSubs = [];
+        setState(needSocket() ? 'reconnecting' : 'off');
         reconnect();
       };
     }
     function reconnect() {
-      if (!running) return;
+      if (!needSocket()) return;
       timers.push(setTimeout(connect, wsDelay));
       wsDelay = Math.min(wsDelay * 2, 30_000);
     }
@@ -250,36 +283,63 @@
         if (t.status === 'candidate' || t.status === 'checking') candidates += 1;
         if (t.status === 'alerted') alerted += 1;
       }
-      return { stream: wsState, running, watching: watch.size, candidates, alerted, checkingNow: checking.size, ...stats };
+      return { stream: wsState, running, wallets: wallets.length, watching: watch.size, candidates, alerted, checkingNow: checking.size, ...stats };
     }
 
+    let loopTimers = [];
     function start() {
       if (running) return;
       running = true;
       stats.startedAt = Date.now();
-      connect();
+      if (ws && ws.readyState === 1) {
+        sendJson({ method: 'subscribeNewToken' });
+        sendJson({ method: 'subscribeMigration' });
+      } else {
+        connect();
+      }
       pollProfiles();
-      timers.push(setInterval(prefilter, 10_000));
-      timers.push(setInterval(pollProfiles, 60_000));
+      loopTimers.push(setInterval(prefilter, 10_000));
+      loopTimers.push(setInterval(pollProfiles, 60_000));
       emit('status', status());
+    }
+
+    function closeSocket() {
+      for (const t of timers) clearTimeout(t);
+      timers = [];
+      if (ws) { const s = ws; ws = null; s.onclose = null; try { s.close(); } catch (_) { /* ignore */ } }
+      walletSubs = [];
     }
 
     function stop() {
       running = false;
-      for (const t of timers) { clearTimeout(t); clearInterval(t); }
-      timers = [];
-      if (ws) { const s = ws; ws = null; s.onclose = null; try { s.close(); } catch (_) { /* ignore */ } }
-      setState('off');
+      for (const t of loopTimers) clearInterval(t);
+      loopTimers = [];
+      if (wallets.length && ws && ws.readyState === 1) {
+        sendJson({ method: 'unsubscribeNewToken' });
+        sendJson({ method: 'unsubscribeMigration' });
+        emit('status', status());
+      } else {
+        closeSocket();
+        setState('off');
+      }
+    }
+
+    /** Track trader / KOL wallets (pump.fun + PumpSwap trades via PumpPortal). Works with or without the launch scanner. */
+    function setWallets(list) {
+      wallets = (list || []).filter((w) => w && S.isBase58Address(w.address));
+      if (needSocket()) { if (!ws) { wsDelay = 1000; connect(); } else syncWalletSubs(); }
+      else { closeSocket(); setState('off'); }
     }
 
     /** Ensure the stream is up (e.g. after iOS unfreezes the page). */
     function wake() {
-      if (running && !ws) { wsDelay = 1000; connect(); }
+      if (needSocket() && !ws) { wsDelay = 1000; connect(); }
       if (running) prefilter();
     }
 
     return {
-      start, stop, wake, status,
+      start, stop, wake, status, setWallets,
+      walletsTracked: () => wallets.length,
       list: () => [...watch.values()],
       isRunning: () => running,
       _add: add, _prefilter: prefilter, // test hooks

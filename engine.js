@@ -26,6 +26,9 @@
     maxChecksPerMin: 6,
     liveMigrationsOnly: false,
     keepAwake: true,
+    wallets: [],            // [{ address, label }] tracked trader / KOL wallets
+    walletNotify: true,
+    soundEnabled: true,
   });
 
   const WSOL = 'So11111111111111111111111111111111111111112';

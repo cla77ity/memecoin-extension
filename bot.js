@@ -30,6 +30,13 @@ const settings = {
   liveMigrationsOnly: env.MIGRATIONS_ONLY === '1',
 };
 
+// WALLETS="Alpha:5tzF…,Beta:GThU…" (label optional) — trader / KOL wallets to follow
+const wallets = String(env.WALLETS || '').split(',').map((x) => x.trim()).filter(Boolean).map((x) => {
+  const i = x.lastIndexOf(':');
+  return i > 0 ? { label: x.slice(0, i).trim(), address: x.slice(i + 1).trim() } : { label: '', address: x };
+}).filter((w) => S.isBase58Address(w.address));
+const WALLET_SELLS = env.WALLET_SELLS === '1';
+
 const TOKEN = env.TELEGRAM_BOT_TOKEN || '';
 let chatId = env.TELEGRAM_CHAT_ID || '';
 const TG = `https://api.telegram.org/bot${TOKEN}`;
@@ -98,6 +105,41 @@ async function sendAlert(item, r) {
   });
 }
 
+// ------------------------------------------------------------------ tracked wallets
+const recentBuys = []; // { wallet, mint, ts }
+const clusterSent = new Set();
+const walletName = (a) => { const w = wallets.find((x) => x.address === a); return (w && w.label) || S.shortAddr(a); };
+
+async function tokenInfo(mint) {
+  try {
+    const res = await fetch(`https://api.dexscreener.com/tokens/v1/solana/${mint}`, { signal: AbortSignal.timeout(4000) });
+    const pairs = res.ok ? await res.json() : [];
+    const p = (Array.isArray(pairs) ? pairs : []).sort((a, b) => ((b.liquidity && b.liquidity.usd) || 0) - ((a.liquidity && a.liquidity.usd) || 0))[0];
+    return p ? { symbol: p.baseToken.symbol, mc: S.num(p.marketCap || p.fdv), pair: p.pairAddress } : {};
+  } catch (_) { return {}; }
+}
+
+async function onTrade(tr) {
+  if (tr.side === 'buy') recentBuys.push({ wallet: tr.wallet, mint: tr.mint, ts: tr.ts });
+  while (recentBuys.length && Date.now() - recentBuys[0].ts > 30 * 60_000) recentBuys.shift();
+  if (tr.side === 'sell' && !WALLET_SELLS) return;
+  if (!chatId) return;
+  const info = await tokenInfo(tr.mint);
+  const what = info.symbol ? `$${html(info.symbol)}` : `<code>${html(S.shortAddr(tr.mint))}</code>`;
+  const l = S.links(tr.mint, info.pair);
+  const buttons = { inline_keyboard: [[{ text: 'Photon', url: l.photon }, { text: 'DEXScreener', url: l.dexscreener }, { text: 'RugCheck', url: l.rugcheck }]] };
+  const buyers = [...new Set(recentBuys.filter((b) => b.mint === tr.mint).map((b) => b.wallet))];
+  const cluster = tr.side === 'buy' && buyers.length >= 2 && !clusterSent.has(tr.mint);
+  if (cluster) clusterSent.add(tr.mint);
+  const text = [
+    cluster ? `<b>${buyers.length} кошелька зашли в ${what}</b>: ${html(buyers.map(walletName).join(', '))}` : `<b>${html(walletName(tr.wallet))}</b> ${tr.side === 'buy' ? 'купил' : 'продал'} ${what}`,
+    `${tr.sol != null ? `${tr.sol.toFixed(2)} SOL` : ''}${info.mc != null ? ` · MC ${html(S.fmtUsd(info.mc))}` : ''}`,
+    `<code>${html(tr.mint)}</code>`,
+  ].join('\n');
+  await tg('sendMessage', { chat_id: chatId, text, parse_mode: 'HTML', disable_web_page_preview: true, reply_markup: buttons })
+    .catch((e) => logLine('trade send failed:', e.message));
+}
+
 // Commands: /start → chat id, /status → live stats. Long polling, no webhook needed.
 async function pollCommands() {
   let offset = 0;
@@ -139,6 +181,7 @@ const scanner = globalThis.SolSniperScanner.createScanner({
   log: (...a) => logLine(...a),
   onEvent: (type, data) => {
     if (type === 'status') logLine('stream:', data.stream);
+    if (type === 'trade') onTrade(data).catch((e) => logLine('trade:', e.message));
     if (type === 'alert') {
       logLine(`ALERT $${data.item.symbol} score ${data.result.evaluation.score} ${data.item.mint}`);
       sendAlert(data.item, data.result).catch((e) => logLine('send failed:', e.message));
@@ -150,6 +193,7 @@ const scanner = globalThis.SolSniperScanner.createScanner({
   logLine(`SolSniper bot · vol5m ≥ $${settings.minVol5mUsd} · top10 ≤ ${settings.maxTop10Pct}% · score ≥ ${settings.minScore} · ${settings.maxChecksPerMin} checks/min`);
   pollCommands();
   scanner.start();
+  if (wallets.length) { scanner.setWallets(wallets); logLine(`tracking ${wallets.length} wallet(s)`); }
   if (chatId) {
     tg('sendMessage', { chat_id: chatId, text: 'SolSniper запущен. Слежу за новыми токенами, пришлю только те, что прошли фильтр.' })
       .catch((e) => logLine('cannot write to TELEGRAM_CHAT_ID:', e.message));

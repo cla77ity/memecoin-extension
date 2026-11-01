@@ -193,3 +193,25 @@ body { min-height: 100dvh; }
 .st-chip.alerted { background: var(--hi); color: var(--inv); }
 
 .key-paste { width: 100%; min-height: 44px !important; margin-top: 2px; }
+
+/* ---------- live: mode switch + wallets */
+.seg-main { grid-template-columns: repeat(2, 1fr); }
+.seg-main button { height: 40px; font-size: 14px; }
+.view-part { display: flex; flex-direction: column; gap: 14px; }
+.wallet-add { display: flex; flex-direction: column; gap: 8px; }
+.wallet-add-row { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.w-input {
+  width: 100%; height: 44px; padding: 0 14px; border-radius: 14px; border: 1px solid var(--l); background: var(--bg);
+  color: var(--hi); font: 16px var(--sans); outline: none; -webkit-appearance: none; appearance: none;
+}
+.w-input.mono { font-family: var(--mono); }
+.w-input:focus { border-color: var(--hi); }
+.wallet-add-row .btn { min-height: 44px !important; padding: 0 18px; }
+.wallet-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.wallet-chips:empty { display: none; }
+.w-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 4px 4px 12px; border-radius: 999px; background: var(--bg); border: 1px solid var(--l); font-size: 13px; }
+.w-chip b { color: var(--hi); font-weight: 600; }
+.w-chip .mono { font: 11px var(--mono); color: var(--mid); }
+.w-chip button { width: 24px; height: 24px; border-radius: 50%; border: 0; background: var(--p2); color: var(--mid); font: 15px var(--sans); line-height: 1; }
+.live-row.trade.sell { background: var(--p); }
+.live-row.trade .lr-nums span:first-child { font-family: var(--sans); font-weight: 600; color: var(--hi); }

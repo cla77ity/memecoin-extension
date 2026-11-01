@@ -13,8 +13,8 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="icon" href="icons/icon48.png">
-  <link rel="stylesheet" href="styles.css?v=20261101-key">
-  <link rel="stylesheet" href="app.css?v=20261101-key">
+  <link rel="stylesheet" href="styles.css?v=20261101-wallets">
+  <link rel="stylesheet" href="app.css?v=20261101-wallets">
 </head>
 <body>
   <div class="root mobile app">
@@ -49,28 +49,56 @@
 
       <!-- LIVE -->
       <section class="view" id="view-live">
-        <div class="live-head">
-          <div class="live-top">
-            <div>
-              <h2>Live-сканер</h2>
-              <p class="meta" id="liveState">Выключен</p>
+        <div class="seg seg-main" id="liveMode">
+          <button data-m="launches" class="active">Новые токены</button>
+          <button data-m="wallets">Кошельки</button>
+        </div>
+
+        <div id="liveLaunches" class="view-part">
+          <div class="live-head">
+            <div class="live-top">
+              <div>
+                <h2>Live-сканер</h2>
+                <p class="meta" id="liveState">Выключен</p>
+              </div>
+              <input type="checkbox" class="toggle" data-k="liveEnabled" id="liveToggle">
             </div>
-            <input type="checkbox" class="toggle" data-k="liveEnabled" id="liveToggle">
+            <div class="live-stats">
+              <div><b id="stSeen">0</b><span>новых</span></div>
+              <div><b id="stWatch">0</b><span>следим</span></div>
+              <div><b id="stCand">0</b><span>кандидаты</span></div>
+              <div><b id="stAlerts">0</b><span>алерты</span></div>
+            </div>
+            <p class="hint" id="liveHint">Ловит каждый запуск на pump.fun, миграции на Raydium/PumpSwap и новые профили DexScreener. Алерт приходит, только если токен прошёл фильтр. Работает, пока приложение открыто.</p>
           </div>
-          <div class="live-stats">
-            <div><b id="stSeen">0</b><span>новых</span></div>
-            <div><b id="stWatch">0</b><span>следим</span></div>
-            <div><b id="stCand">0</b><span>кандидаты</span></div>
-            <div><b id="stAlerts">0</b><span>алерты</span></div>
+          <div class="seg" id="liveFilter">
+            <button data-f="hot" class="active">Горячие</button>
+            <button data-f="alerted">Алерты</button>
+            <button data-f="all">Все</button>
           </div>
-          <p class="hint" id="liveHint">Ловит каждый запуск на pump.fun, миграции на Raydium/PumpSwap и новые профили DexScreener. Алерт приходит, только если токен прошёл фильтр. Работает, пока приложение открыто.</p>
+          <div id="liveList" class="live-list"></div>
         </div>
-        <div class="seg" id="liveFilter">
-          <button data-f="hot" class="active">Горячие</button>
-          <button data-f="alerted">Алерты</button>
-          <button data-f="all">Все</button>
+
+        <div id="liveWallets" class="view-part" hidden>
+          <div class="live-head">
+            <div class="live-top">
+              <div>
+                <h2>Кошельки трейдеров</h2>
+                <p class="meta" id="walletState">Добавь кошельки KOL или трейдеров</p>
+              </div>
+            </div>
+            <div class="wallet-add">
+              <input id="wAddr" class="w-input mono" type="text" placeholder="Адрес кошелька" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+              <div class="wallet-add-row">
+                <input id="wLabel" class="w-input" type="text" placeholder="Имя (необязательно)" autocomplete="off">
+                <button class="btn primary sm" id="wAdd">Добавить</button>
+              </div>
+            </div>
+            <div id="walletChips" class="wallet-chips"></div>
+            <p class="hint">Видно их покупки и продажи на pump.fun и PumpSwap в реальном времени. Если 2+ кошелька зашли в один токен — отдельный алерт. Адреса KOL можно взять на kolscan.io или в профиле трейдера на GMGN.</p>
+          </div>
+          <div id="tradeList" class="live-list"></div>
         </div>
-        <div id="liveList" class="live-list"></div>
       </section>
 
       <!-- SIGNALS -->
@@ -89,6 +117,15 @@
           <label class="field"><span>Helius API key</span><input type="password" data-k="heliusApiKey" autocomplete="off" placeholder="Вставь ключ или ссылку Helius"></label>
           <div class="conn" data-conn></div>
           <button class="btn ghost sm" data-conncheck>Проверить подключение</button>
+        </div>
+
+        <div class="sec-title">Уведомления</div>
+        <div class="group">
+          <p class="meta" id="notifStatus">…</p>
+          <button class="btn primary sm" id="notifBtn" hidden>Включить уведомления</button>
+          <label class="switch-row"><input type="checkbox" class="toggle" data-k="notifyEnabled"><span>Алерты по токенам</span></label>
+          <label class="switch-row"><input type="checkbox" class="toggle" data-k="walletNotify"><span>Сделки отслеживаемых кошельков</span></label>
+          <label class="switch-row"><input type="checkbox" class="toggle" data-k="soundEnabled"><span>Звук</span></label>
         </div>
 
         <div class="sec-title">Фильтр сигналов</div>
@@ -148,9 +185,9 @@
     <div class="toast" id="toast" hidden></div>
   </div>
 
-  <script src="engine.js?v=20261101-key"></script>
-  <script src="analyzer.js?v=20261101-key"></script>
-  <script src="scanner.js?v=20261101-key"></script>
-  <script src="app.js?v=20261101-key"></script>
+  <script src="engine.js?v=20261101-wallets"></script>
+  <script src="analyzer.js?v=20261101-wallets"></script>
+  <script src="scanner.js?v=20261101-wallets"></script>
+  <script src="app.js?v=20261101-wallets"></script>
 </body>
 </html>

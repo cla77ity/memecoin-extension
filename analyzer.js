@@ -247,6 +247,12 @@
       top10Pct = real.slice(0, 10).reduce((s, h) => s + (S.num(h.pct) || 0), 0);
     }
 
+    // owners of the largest non-pool accounts (lets the UI flag tracked wallets among holders)
+    const holderOwners = [];
+    const addOwner = (o) => { if (o && !exclude.has(o) && !holderOwners.includes(o)) holderOwners.push(o); };
+    if (chain) for (const h of chain.holders) addOwner(h.owner);
+    if (report && Array.isArray(report.topHolders)) for (const h of report.topHolders) addOwner(h.owner);
+
     // dev wallet
     let devPct = null;
     const creator = report && report.creator;
@@ -285,6 +291,7 @@
       lpBurnedPct,
       top10Pct,
       devPct,
+      holderOwners: holderOwners.slice(0, 40),
       rugScore: summary ? S.num(summary.score_normalised ?? summary.score) : null,
       rugRisks,
       totalHolders: report ? S.num(report.totalHolders) : null,
