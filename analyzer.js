@@ -7,6 +7,7 @@
   'use strict';
   const S = root.SolSniper;
   const PUBLIC_RPC = 'https://api.mainnet-beta.solana.com';
+  const SYSTEM_PROGRAM = '11111111111111111111111111111111';
 
   /**
    * @param {object} o
@@ -107,6 +108,19 @@
           });
         } catch (e) {
           out.ownersError = String(e.message || e);
+        }
+        // Who owns the owner? Real wallets are System Program accounts (or empty). Owners run by another program are
+        // pools, bonding curves, vault authorities or lockers — liquidity, not holders. Works for any AMM.
+        if (!out.ownersError) {
+          const owners = [...new Set(out.holders.map((h) => h.owner).filter(Boolean))];
+          try {
+            const [prog] = await rpcBatch([
+              { method: 'getMultipleAccounts', params: [owners, { encoding: 'base64', dataSlice: { offset: 0, length: 0 } }] },
+            ]);
+            const vals = (prog && prog.result && prog.result.value) || [];
+            const programOwned = new Set(owners.filter((o, i) => vals[i] && vals[i].owner && vals[i].owner !== SYSTEM_PROGRAM));
+            for (const h of out.holders) if (programOwned.has(h.owner)) h.programOwned = true;
+          } catch (_) { /* fall back to the known-pool list */ }
         }
       }
       return out;
@@ -264,7 +278,7 @@
     const supplyRaw = (chain && chain.supplyRaw) || (report && report.token && S.num(report.token.supply)) || null;
     let top10Pct = null;
     if (chain && chain.holders.length && supplyRaw && !chain.ownersError) {
-      const real = chain.holders.filter((h) => !exclude.has(h.address) && !exclude.has(h.owner));
+      const real = chain.holders.filter((h) => !h.programOwned && !exclude.has(h.address) && !exclude.has(h.owner));
       top10Pct = (real.slice(0, 10).reduce((s, h) => s + h.amountRaw, 0) / supplyRaw) * 100;
     } else if (report && Array.isArray(report.topHolders) && report.topHolders.length) {
       const real = report.topHolders.filter((h) => !exclude.has(h.address) && !exclude.has(h.owner));
@@ -274,7 +288,7 @@
     // owners of the largest non-pool accounts (lets the UI flag tracked wallets among holders)
     const holderOwners = [];
     const addOwner = (o) => { if (o && !exclude.has(o) && !holderOwners.includes(o)) holderOwners.push(o); };
-    if (chain) for (const h of chain.holders) addOwner(h.owner);
+    if (chain) for (const h of chain.holders) if (!h.programOwned) addOwner(h.owner);
     if (report && Array.isArray(report.topHolders)) for (const h of report.topHolders) addOwner(h.owner);
 
     // dev wallet

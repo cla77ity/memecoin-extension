@@ -13,8 +13,8 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="icon" href="icons/icon48.png">
-  <link rel="stylesheet" href="styles.css?v=20261101-chart">
-  <link rel="stylesheet" href="app.css?v=20261101-chart">
+  <link rel="stylesheet" href="styles.css?v=20261102-funnel2">
+  <link rel="stylesheet" href="app.css?v=20261102-funnel2">
 </head>
 <body>
   <div class="root mobile app">
@@ -69,7 +69,8 @@
               <div><b id="stCand">0</b><span>кандидаты</span></div>
               <div><b id="stAlerts">0</b><span>алерты</span></div>
             </div>
-            <p class="hint" id="liveHint">Ловит каждый запуск на pump.fun, миграции на Raydium/PumpSwap и новые профили DexScreener. Алерт приходит, только если токен прошёл фильтр. Работает, пока приложение открыто.</p>
+            <div class="funnel" id="funnel" hidden></div>
+          <p class="hint" id="liveHint">Ловит каждый запуск на pump.fun, миграции на Raydium/PumpSwap и новые профили DexScreener. Алерт приходит, только если токен прошёл фильтр. Работает, пока приложение открыто.</p>
           </div>
           <div class="seg" id="liveFilter">
             <button data-f="safe" class="active">Без риска</button>
@@ -130,6 +131,12 @@
 
         <div class="sec-title">Фильтр сигналов</div>
         <div class="group">
+          <div class="seg" id="presetSeg">
+            <button data-preset="strict">Строгий</button>
+            <button data-preset="balanced">Баланс</button>
+            <button data-preset="active">Активный</button>
+          </div>
+          <p class="hint">Во всех пресетах Score ≥ 70 и Freeze OFF. Меняются только порог объёма за 5 мин, лимит Top 10 и ликвидность.</p>
           <div class="form-grid">
             <label class="field"><span>Max Top 10, %</span><input type="number" inputmode="decimal" data-k="maxTop10Pct"></label>
             <label class="field"><span>Min Vol 5m, $</span><input type="number" inputmode="numeric" data-k="minVol5mUsd"></label>
@@ -185,9 +192,9 @@
     <div class="toast" id="toast" hidden></div>
   </div>
 
-  <script src="engine.js?v=20261101-chart"></script>
-  <script src="analyzer.js?v=20261101-chart"></script>
-  <script src="scanner.js?v=20261101-chart"></script>
-  <script src="app.js?v=20261101-chart"></script>
+  <script src="engine.js?v=20261102-funnel2"></script>
+  <script src="analyzer.js?v=20261102-funnel2"></script>
+  <script src="scanner.js?v=20261102-funnel2"></script>
+  <script src="app.js?v=20261102-funnel2"></script>
 </body>
 </html>

@@ -25,6 +25,21 @@
   const MIN_AGE_MS = 45_000;        // DexScreener needs a moment to index a brand-new token
   const PREFILTER_EVERY_MS = 25_000; // per-token prefilter cadence
   const RECHECK_REJECTED_MS = 180_000;
+  const RECHECK_INCOMPLETE_MS = 45_000; // data gaps (RPC slow / rate-limited) are retried, not treated as risk
+  const MAX_INCOMPLETE_TRIES = 3;
+
+  /** Groups filter / badge reasons into a few human buckets for the funnel. */
+  function reasonKey(r, minScore) {
+    if (/^HIGH RUG RISK/.test(r)) return `Score < ${minScore}`;
+    if (/Freeze/i.test(r)) return 'Freeze ON';
+    if (/Mint authority/i.test(r)) return 'Mint ON';
+    if (/Top 10 unknown|Authorities unknown/i.test(r)) return 'нет on-chain данных';
+    if (/^Top 10/.test(r)) return 'Top 10 выше лимита';
+    if (/5m volume unknown|^Vol 5m/.test(r)) return 'объём упал';
+    if (/^LP only/.test(r)) return 'LP не сожжён';
+    if (/^Dev holds/.test(r)) return 'Dev держит много';
+    return 'риск по RugCheck';
+  }
   const MAX_WATCH = 3000;
 
   function createScanner({ analyzer, getSettings, fetchImpl, WebSocketImpl, onEvent = () => {}, log = () => {} }) {
@@ -32,7 +47,8 @@
     const WS = WebSocketImpl || root.WebSocket;
     const watch = new Map();
     const checking = new Set();
-    const stats = { seen: 0, prefiltered: 0, checked: 0, alerts: 0, startedAt: 0 };
+    const stats = { seen: 0, prefiltered: 0, traded: 0, candidatesTotal: 0, checked: 0, alerts: 0, incomplete: 0, startedAt: 0 };
+    const rejectReasons = {};
     let ws = null;
     let wsState = 'off';
     let wsDelay = 1000;
@@ -214,6 +230,7 @@
             const p = best.get(t.mint);
             stats.prefiltered += 1;
             if (!p) { if (t.status === 'new') t.status = 'watch'; continue; }
+            if (!t.traded) { t.traded = true; stats.traded += 1; }
             t.symbol = t.symbol || p.baseToken.symbol || '';
             t.name = t.name || p.baseToken.name || '';
             t.metrics = {
@@ -226,7 +243,12 @@
             };
             const hot = (t.metrics.vol5m || 0) >= c.minVol5mUsd
               && (p.dexId === 'pumpfun' || (t.metrics.liq || 0) >= c.minLiqUsd);
-            if (hot && (t.status !== 'rejected' || ts - t.lastFull > RECHECK_REJECTED_MS)) t.status = 'candidate';
+            const waitMs = t.status === 'incomplete' ? RECHECK_INCOMPLETE_MS : RECHECK_REJECTED_MS;
+            const parked = t.status === 'rejected' || t.status === 'incomplete';
+            if (hot && (!parked || ts - t.lastFull > waitMs)) {
+              t.status = 'candidate';
+              if (!t.wasCandidate) { t.wasCandidate = true; stats.candidatesTotal += 1; }
+            }
             else if (t.status === 'new') t.status = 'watch';
             emit('update', t);
           }
@@ -246,7 +268,7 @@
         .filter((t) => t.status === 'candidate' && !checking.has(t.mint))
         .sort((a, b) => ((b.metrics && b.metrics.vol5m) || 0) - ((a.metrics && a.metrics.vol5m) || 0));
       for (const t of cands) {
-        if (checkTimes.length >= c.maxChecksPerMin || checking.size >= 2) break;
+        if (checkTimes.length >= c.maxChecksPerMin || checking.size >= 3) break;
         checkTimes.push(Date.now());
         checking.add(t.mint);
         t.status = 'checking';
@@ -259,7 +281,23 @@
           t.symbol = r.token.symbol && r.token.symbol !== '???' ? r.token.symbol : t.symbol;
           const ok = r.filter.approved && r.badge.level !== 'DANGER';
           t.reasons = ok ? [] : (r.filter.reasons.length ? r.filter.reasons : r.badge.reasons);
+          const tk = r.token;
+          const gaps = tk.top10Pct == null || tk.mintAuthority == null || tk.freezeAuthority == null;
+          t.tries = (t.tries || 0) + 1;
+          if (!ok && gaps && t.tries < MAX_INCOMPLETE_TRIES) {
+            // not a verdict: the RPC didn't answer in time — try again shortly
+            t.status = 'incomplete';
+            t.reasons = ['нет части on-chain данных, перепроверю'];
+            stats.incomplete += 1;
+            emit('update', t);
+            return;
+          }
           t.status = ok ? 'alerted' : 'rejected';
+          if (!ok && !t.counted) {
+            t.counted = true;
+            const keys = new Set(t.reasons.map((x) => reasonKey(x, c.minScore)));
+            for (const k of keys) rejectReasons[k] = (rejectReasons[k] || 0) + 1;
+          }
           if (ok) {
             stats.alerts += 1;
             emit('alert', { item: t, result: r });
@@ -283,7 +321,7 @@
         if (t.status === 'candidate' || t.status === 'checking') candidates += 1;
         if (t.status === 'alerted') alerted += 1;
       }
-      return { stream: wsState, running, wallets: wallets.length, watching: watch.size, candidates, alerted, checkingNow: checking.size, ...stats };
+      return { stream: wsState, running, wallets: wallets.length, rejectReasons: { ...rejectReasons }, watching: watch.size, candidates, alerted, checkingNow: checking.size, ...stats };
     }
 
     let loopTimers = [];

@@ -583,10 +583,12 @@
   let wakeLock = null;
   const SRC_LABEL = { pump: 'Live · pump.fun', migration: 'Live · миграция', profile: 'Live · DexScreener' };
   const SRC_SHORT = { pump: 'pump', migration: 'migr', profile: 'dex' };
-  const STATUS_LABEL = { new: 'новый', watch: 'следим', candidate: 'кандидат', checking: 'проверка…', alerted: 'алерт', rejected: 'отсеян' };
+  const STATUS_LABEL = { new: 'новый', watch: 'следим', candidate: 'кандидат', checking: 'проверка…', alerted: 'без риска', rejected: 'отсеян', incomplete: 'перепроверка' };
 
+  // Background checks aren't interactive: give slow free-tier RPC more time instead of mistaking a timeout for risk.
+  const scanAnalyzer = globalThis.SolSniperAnalyzer.createAnalyzer({ getSettings: () => settings, fetchImpl: transport, timeoutMs: 4000 });
   const scanner = globalThis.SolSniperScanner.createScanner({
-    analyzer,
+    analyzer: scanAnalyzer,
     getSettings: () => settings,
     fetchImpl: transport,
     onEvent: (type, data) => {
@@ -614,6 +616,30 @@
     return sec < 60 ? `${sec} с` : `${Math.round(sec / 60)} мин`;
   };
 
+  // Where tokens drop out: caught → trading → volume threshold → fully checked → clean
+  function renderFunnel(st) {
+    const box = $('funnel');
+    if (!box) return;
+    if (!st.running && !st.seen) { box.hidden = true; return; }
+    box.hidden = false;
+    const step = (n, label) => `<div class="f-step"><b>${n}</b><span>${label}</span></div>`;
+    const reasons = Object.entries(st.rejectReasons || {}).sort((a, b) => b[1] - a[1]).slice(0, 4);
+    const mins = Math.max(1, Math.round((Date.now() - (st.startedAt || Date.now())) / 60_000));
+    let tip = '';
+    if (st.traded >= 30 && st.candidatesTotal / st.traded < 0.03) {
+      tip = `Порог объёма ${S.fmtUsd(settings.minVol5mUsd)} за 5 мин пропускает меньше 3% торгующихся монет. Попробуй пресет «Баланс» в Настройках.`;
+    } else if (reasons.length && reasons[0][0] === 'Top 10 выше лимита') {
+      tip = `Чаще всего монеты режет лимит Top 10 ≤ ${settings.maxTop10Pct}%. У свежих мемкоинов топ-10 обычно 20–35%.`;
+    } else if (reasons.length && reasons[0][0] === 'нет on-chain данных') {
+      tip = 'Helius не успевает отвечать. Проверь ключ в Настройках или уменьши «Проверок в минуту».';
+    }
+    box.innerHTML = `
+      <div class="sec-title">Воронка за ${mins} мин</div>
+      <div class="f-steps">${step(st.seen, 'поймано')}${step(st.traded, 'торгуются')}${step(st.candidatesTotal, `объём ≥ ${S.fmtUsd(settings.minVol5mUsd)}`)}${step(st.checked, 'проверено')}${step(st.alerts, 'без риска')}</div>
+      ${reasons.length ? `<div class="f-why"><span class="meta">Чаще всего отсеивает:</span> ${reasons.map(([k, n]) => `<span class="tag">${esc(k)} · ${n}</span>`).join(' ')}</div>` : ''}
+      ${tip ? `<p class="hint">${esc(tip)}</p>` : ''}`;
+  }
+
   function renderLive() {
     const st = scanner.status();
     if ((settings.wallets || []).length) renderWallets();
@@ -621,6 +647,7 @@
     $('stWatch').textContent = st.watching;
     $('stCand').textContent = st.candidates;
     $('stAlerts').textContent = st.alerts;
+    renderFunnel(st);
     const stateTxt = {
       connecting: 'Подключаюсь к потоку…', live: 'В эфире · ловлю новые запуски', reconnecting: 'Переподключение…',
       error: 'Поток недоступен, повторяю…', unsupported: 'Браузер не поддерживает WebSocket',
@@ -632,7 +659,7 @@
     let items = scanner.list();
     // "safe": only tokens that passed the whole filter (Score ≥ min, Freeze OFF, Top 10, Vol 5m, no DANGER)
     if (liveFilter === 'safe') items = items.filter((t) => t.status === 'alerted');
-    else if (liveFilter === 'checked') items = items.filter((t) => t.score != null || t.status === 'checking' || t.status === 'candidate');
+    else if (liveFilter === 'checked') items = items.filter((t) => t.score != null || ['checking', 'candidate', 'incomplete'].includes(t.status));
     items.sort(liveFilter === 'all'
       ? (a, b) => b.firstSeen - a.firstSeen
       : (a, b) => (b.status === 'alerted') - (a.status === 'alerted') || (b.score ?? -1) - (a.score ?? -1) || ((b.metrics && b.metrics.vol5m) || 0) - ((a.metrics && a.metrics.vol5m) || 0));
@@ -900,6 +927,30 @@
     } catch (_) { /* ignore */ }
   }
 
+  // ------------------------------------------------------------ filter presets (Score ≥ 70 stays in all of them)
+  const PRESETS = {
+    strict: { label: 'Строгий', minVol5mUsd: 30000, maxTop10Pct: 20, minScore: 70, minLiqUsd: 10000 },
+    balanced: { label: 'Баланс', minVol5mUsd: 10000, maxTop10Pct: 25, minScore: 70, minLiqUsd: 5000 },
+    active: { label: 'Активный', minVol5mUsd: 5000, maxTop10Pct: 30, minScore: 70, minLiqUsd: 3000 },
+  };
+  function currentPreset() {
+    return Object.keys(PRESETS).find((k) => ['minVol5mUsd', 'maxTop10Pct', 'minScore', 'minLiqUsd'].every((f) => settings[f] === PRESETS[k][f])) || null;
+  }
+  function renderPresets() {
+    const cur = currentPreset();
+    document.querySelectorAll('#presetSeg button').forEach((b) => b.classList.toggle('active', b.dataset.preset === cur));
+  }
+  document.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-preset]');
+    if (!b) return;
+    const p = PRESETS[b.dataset.preset];
+    for (const k of ['minVol5mUsd', 'maxTop10Pct', 'minScore', 'minLiqUsd']) settings[k] = p[k];
+    saveSettings();
+    fillSettingsForm();
+    renderPresets();
+    toast(`Фильтр: ${p.label}. Объём ≥ ${S.fmtUsd(p.minVol5mUsd)}, Top 10 ≤ ${p.maxTop10Pct}%, Score ≥ ${p.minScore}`);
+  });
+
   // ------------------------------------------------------------ settings form
   const fields = document.querySelectorAll('#view-settings [data-k]');
   function fillSettingsForm() {
@@ -922,7 +973,8 @@
       saveTimer = setTimeout(() => {
         saveSettings();
         analyzer.clearCache();
-        if (k === 'heliusApiKey' || k === 'rpcUrl') checkConnections();
+        if (k === 'heliusApiKey' || k === 'rpcUrl') { checkConnections(); scanAnalyzer.clearCache(); }
+        renderPresets();
         if (k === 'keepAwake') setKeepAwake(settings.liveEnabled && settings.keepAwake);
         if (['serverUrl', 'serverToken', 'wsEnabled'].includes(k)) {
           proxiedHosts.clear();
@@ -1030,4 +1082,5 @@
   scanner.setWallets(settings.wallets || []);
   renderWallets();
   renderNotif();
+  renderPresets();
 })();

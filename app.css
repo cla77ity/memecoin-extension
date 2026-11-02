@@ -256,3 +256,18 @@ body { min-height: 100dvh; }
 .chart-msg { min-height: 156px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: var(--mid); font-size: 13px; text-align: center; }
 .dex-embed { width: 100%; height: 380px; border: 0; border-radius: 10px; display: block; }
 .chart:has(.dex-embed) { padding: 0; }
+
+/* ---------- funnel */
+.funnel { display: flex; flex-direction: column; gap: 10px; padding-top: 12px; border-top: 1px solid var(--l); }
+.funnel .sec-title { margin: 0; }
+.f-steps { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+.f-step { display: flex; flex-direction: column; align-items: center; text-align: center; padding: 6px 2px; border-radius: 12px; background: var(--bg); border: 1px solid var(--l); position: relative; }
+.f-step b { font: 600 15px var(--mono); color: var(--hi); }
+.f-step span { font-size: 10px; color: var(--mid); line-height: 1.2; }
+.f-step:last-child { background: var(--hi); border-color: var(--hi); }
+.f-step:last-child b, .f-step:last-child span { color: var(--inv); }
+.f-why { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 12px; }
+.f-why .tag { font-size: 11px; }
+.st-chip.incomplete { color: var(--fg); border: 1px dashed var(--l2); background: var(--bg); }
+.live-stats { display: none; }
+.funnel { border-top: 0; padding-top: 0; }
