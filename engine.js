@@ -7,8 +7,8 @@
 
   const DEFAULT_SETTINGS = Object.freeze({
     autoCheck: true,
-    maxTop10Pct: 20,        // hard filter: Top-10 holders must be <= this
-    minVol5mUsd: 30000,     // hard filter: 5m volume must be >= this
+    maxTop10Pct: 25,        // hard filter: Top-10 holders must be <= this
+    minVol5mUsd: 10000,     // hard filter: 5m volume must be >= this
     minScore: 70,           // below this a token is "HIGH RUG RISK"
     depositAmount: 1000,
     depositCurrency: 'USD', // 'USD' | 'SOL'
@@ -21,7 +21,7 @@
     wsEnabled: true,
     notifyEnabled: true,
     liveEnabled: false,     // live scanner of every new launch
-    minLiqUsd: 10000,
+    minLiqUsd: 5000,
     watchMinutes: 30,
     maxChecksPerMin: 6,
     liveMigrationsOnly: false,

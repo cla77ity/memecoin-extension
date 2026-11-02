@@ -16,6 +16,15 @@
   const servedByRelay = /\/app\/?$/.test(location.pathname) || location.pathname.endsWith('/app/index.html');
   let settings = { ...S.DEFAULT_SETTINGS, ...APP_DEFAULTS, ...(servedByRelay ? { serverUrl: location.origin } : {}), ...LS.get('settings', {}) };
   const saveSettings = () => LS.set('settings', settings);
+  const APP_VERSION = '2026-11-02 · balanced';
+  // v2: defaults moved from Strict to Balanced — migrate users still on the untouched old defaults
+  if ((settings.settingsVersion || 1) < 2) {
+    if (settings.minVol5mUsd === 30000 && settings.maxTop10Pct === 20) {
+      Object.assign(settings, { minVol5mUsd: 10000, maxTop10Pct: 25, minScore: 70, minLiqUsd: 5000 });
+    }
+    settings.settingsVersion = 2;
+    saveSettings();
+  }
 
   // ------------------------------------------------------------ transport: direct, falling back to server.py /proxy on CORS errors
   const proxiedHosts = new Set(LS.get('proxiedHosts', []));
@@ -938,7 +947,7 @@
   }
   function renderPresets() {
     const cur = currentPreset();
-    document.querySelectorAll('#presetSeg button').forEach((b) => b.classList.toggle('active', b.dataset.preset === cur));
+    document.querySelectorAll('[data-preset]').forEach((b) => b.classList.toggle('active', b.dataset.preset === cur));
   }
   document.addEventListener('click', (e) => {
     const b = e.target.closest('[data-preset]');
@@ -948,7 +957,9 @@
     saveSettings();
     fillSettingsForm();
     renderPresets();
+  $('appVersion').textContent = `Версия ${APP_VERSION}`;
     toast(`Фильтр: ${p.label}. Объём ≥ ${S.fmtUsd(p.minVol5mUsd)}, Top 10 ≤ ${p.maxTop10Pct}%, Score ≥ ${p.minScore}`);
+    renderLive();
   });
 
   // ------------------------------------------------------------ settings form

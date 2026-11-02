@@ -52,7 +52,7 @@ cloudflared tunnel --url http://localhost:8080   # бесплатно, даёт 
 1. В Telegram открыть @BotFather → `/newbot` → скопировать токен.
 2. Развернуть репозиторий на любом хостинге с Docker (Railway, Render Background Worker, VPS). Есть `Dockerfile`, Node 22, зависимостей нет.
 3. Переменные окружения: `TELEGRAM_BOT_TOKEN`, `HELIUS_API_KEY`, затем `TELEGRAM_CHAT_ID`. Чтобы узнать chat id, напиши боту `/start`, он ответит. Для канала: добавь бота админом и укажи `@channel` или `-100…`.
-4. Необязательные: `MIN_VOL_5M` (30000), `MAX_TOP10` (20), `MIN_SCORE` (70), `MIN_LIQ` (10000), `MAX_CHECKS_PER_MIN` (6), `WATCH_MINUTES` (30), `MIGRATIONS_ONLY=1`.
+4. Необязательные: `MIN_VOL_5M` (10000), `MAX_TOP10` (25), `MIN_SCORE` (70), `MIN_LIQ` (5000), `MAX_CHECKS_PER_MIN` (6), `WATCH_MINUTES` (30), `MIGRATIONS_ONLY=1`.
 
 **Кошельки трейдеров:** `WALLETS="Alpha:АДРЕС,Beta:АДРЕС"` — бот пишет об их покупках на pump.fun/PumpSwap и отдельно, когда 2+ кошелька зашли в один токен за 30 минут. `WALLET_SELLS=1` — присылать и продажи.
 

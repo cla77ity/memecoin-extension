@@ -13,8 +13,8 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="icon" href="icons/icon48.png">
-  <link rel="stylesheet" href="styles.css?v=20261102-funnel2">
-  <link rel="stylesheet" href="app.css?v=20261102-funnel2">
+  <link rel="stylesheet" href="styles.css?v=20261102-bal">
+  <link rel="stylesheet" href="app.css?v=20261102-bal">
 </head>
 <body>
   <div class="root mobile app">
@@ -69,7 +69,15 @@
               <div><b id="stCand">0</b><span>кандидаты</span></div>
               <div><b id="stAlerts">0</b><span>алерты</span></div>
             </div>
-            <div class="funnel" id="funnel" hidden></div>
+            <div class="preset-row">
+            <span class="meta">Фильтр</span>
+            <div class="seg">
+              <button data-preset="strict">Строгий</button>
+              <button data-preset="balanced">Баланс</button>
+              <button data-preset="active">Активный</button>
+            </div>
+          </div>
+          <div class="funnel" id="funnel" hidden></div>
           <p class="hint" id="liveHint">Ловит каждый запуск на pump.fun, миграции на Raydium/PumpSwap и новые профили DexScreener. Алерт приходит, только если токен прошёл фильтр. Работает, пока приложение открыто.</p>
           </div>
           <div class="seg" id="liveFilter">
@@ -180,6 +188,7 @@
           <label class="field" style="margin-top:10px"><span>Custom RPC URL</span><input type="url" data-k="rpcUrl" placeholder="https://…"></label>
           <div id="settingsInfo" style="margin-top:8px"></div>
         </details>
+        <p class="hint app-version" id="appVersion"></p>
       </section>
     </main>
 
@@ -192,9 +201,9 @@
     <div class="toast" id="toast" hidden></div>
   </div>
 
-  <script src="engine.js?v=20261102-funnel2"></script>
-  <script src="analyzer.js?v=20261102-funnel2"></script>
-  <script src="scanner.js?v=20261102-funnel2"></script>
-  <script src="app.js?v=20261102-funnel2"></script>
+  <script src="engine.js?v=20261102-bal"></script>
+  <script src="analyzer.js?v=20261102-bal"></script>
+  <script src="scanner.js?v=20261102-bal"></script>
+  <script src="app.js?v=20261102-bal"></script>
 </body>
 </html>

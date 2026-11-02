@@ -2,6 +2,12 @@
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
 
+// Always load the latest app page (iOS Home Screen apps otherwise keep a stale index.html for a while).
+self.addEventListener('fetch', (e) => {
+  if (e.request.mode !== 'navigate') return;
+  e.respondWith(fetch(e.request, { cache: 'no-store' }).catch(() => fetch(e.request)));
+});
+
 // Tap on a notification → focus the app and open that token.
 self.addEventListener('notificationclick', (e) => {
   e.notification.close();

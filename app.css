@@ -271,3 +271,7 @@ body { min-height: 100dvh; }
 .st-chip.incomplete { color: var(--fg); border: 1px dashed var(--l2); background: var(--bg); }
 .live-stats { display: none; }
 .funnel { border-top: 0; padding-top: 0; }
+
+.preset-row { display: flex; flex-direction: column; gap: 6px; }
+.preset-row .seg button { height: 34px; }
+.app-version { text-align: center; padding: 8px 0 4px; }

@@ -17,7 +17,7 @@
   const DEX_PROFILES = 'https://api.dexscreener.com/token-profiles/latest/v1';
 
   const LIVE_DEFAULTS = {
-    minLiqUsd: 10000,       // prefilter: AMM liquidity floor (bonding-curve tokens are exempt)
+    minLiqUsd: 5000,        // prefilter: AMM liquidity floor (bonding-curve tokens are exempt)
     watchMinutes: 30,       // how long a fresh token stays on the watchlist
     maxChecksPerMin: 6,     // full RugCheck + RPC analyses per minute (protects free Helius credits)
     liveMigrationsOnly: false,
